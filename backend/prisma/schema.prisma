@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CycleStatus {
+  ACTIVE
+  COMPLETED
+  RESET
+}
+
+enum WorkCodeBehavior {
+  FIXED_HOURS
+  ABSENCE
+  DISPLACEMENT
+  TIME_CLOCK
+  HOLIDAY
+  EMPTY
+}
+
+enum ImportStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum ScanBatchStatus {
+  PROCESSING
+  EXTRACTED
+  FAILED
+}
+
+enum ScanDocumentStatus {
+  PENDING
+  PROCESSING
+  EXTRACTED
+  FAILED
+}
+
+enum CalculationRunStatus {
+  COMPLETED
+}
+
+model PayrollCycle {
+  id           String      @id @default(uuid())
+  payrollMonth String
+  startDate    DateTime
+  endDate      DateTime
+  status       CycleStatus @default(ACTIVE)
+  createdAt    DateTime    @default(now())
+  completedAt  DateTime?
+  resetAt      DateTime?
+  scanBatches  ScanBatch[]
+  timeClockReports TimeClockReport[]
+  calculationRun CalculationRun?
+
+  @@index([status])
+  @@index([payrollMonth])
+}
+
+model EmployeeListImport {
+  id          String       @id @default(uuid())
+  fileName    String
+  storageUrl  String?
+  storageKey  String?
+  status      ImportStatus @default(ACTIVE)
+  importedAt  DateTime     @default(now())
+  archivedAt  DateTime?
+  employees   Employee[]
+
+  @@index([status])
+  @@index([importedAt])
+}
+
+model Employee {
+  id                 String             @id @default(uuid())
+  matricule          String
+  firstName          String
+  lastName           String
+  normalizedFullName String
+  listImportId       String
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  listImport         EmployeeListImport @relation(fields: [listImportId], references: [id], onDelete: Cascade)
+  extractedRows      ExtractedTimeSheetRow[]
+  timeClockReports   TimeClockReport[]
+  calculations       EmployeeCalculation[]
+
+  @@index([normalizedFullName])
+  @@index([listImportId])
+  @@unique([listImportId, matricule])
+}
+
+model ScanBatch {
+  id           String          @id @default(uuid())
+  cycleId      String
+  status       ScanBatchStatus @default(PROCESSING)
+  createdAt    DateTime        @default(now())
+  extractedAt  DateTime?
+  errorMessage String?
+  cycle        PayrollCycle    @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  documents    ScanDocument[]
+
+  @@index([cycleId, createdAt])
+  @@index([status])
+}
+
+model ScanDocument {
+  id            String             @id @default(uuid())
+  batchId       String
+  fileName      String
+  mimeType      String
+  storageUrl    String?
+  storageKey    String?
+  status        ScanDocumentStatus @default(PENDING)
+  errorMessage  String?
+  uploadedAt    DateTime           @default(now())
+  extractedAt   DateTime?
+  batch         ScanBatch          @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  extractedRows ExtractedTimeSheetRow[]
+
+  @@index([batchId])
+  @@index([status])
+}
+
+model ExtractedTimeSheetRow {
+  id                   String       @id @default(uuid())
+  documentId           String
+  employeeId           String?
+  extractedFullName    String
+  matchedFullName      String?
+  sourceRowLabel       String?
+  days                 Json
+  hasTimeClockCode     Boolean      @default(false)
+  requiresReview       Boolean      @default(false)
+  createdAt            DateTime     @default(now())
+  document             ScanDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  employee             Employee?    @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@index([documentId])
+  @@index([employeeId])
+  @@index([hasTimeClockCode])
+}
+
+model TimeClockReport {
+  id           String       @id @default(uuid())
+  cycleId      String
+  employeeId   String
+  fileName     String
+  storageUrl   String?
+  storageKey   String?
+  days         Json
+  importedAt   DateTime     @default(now())
+  cycle        PayrollCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([cycleId, employeeId])
+  @@index([cycleId, importedAt])
+  @@index([employeeId])
+}
+
+model Holiday {
+  id        String   @id @default(uuid())
+  date      DateTime @unique
+  label     String
+  createdAt DateTime @default(now())
+
+  @@index([date])
+}
+
+model CalculationRun {
+  id           String               @id @default(uuid())
+  cycleId      String               @unique
+  status       CalculationRunStatus @default(COMPLETED)
+  openDays     Int
+  adjustmentMinutes Int
+  launchedAt   DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  cycle        PayrollCycle         @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  results      EmployeeCalculation[]
+}
+
+model EmployeeCalculation {
+  id                     String         @id @default(uuid())
+  runId                  String
+  employeeId             String
+  normalMinutes          Int            @default(0)
+  absenceDays            Int            @default(0)
+  stcDays                Int            @default(0)
+  paidLeaveDays          Int            @default(0)
+  sickLeaveDays          Int            @default(0)
+  overtimeMiniMinutes    Int            @default(0)
+  overtimeMaxiMinutes    Int            @default(0)
+  displacementDays       Int            @default(0)
+  requiresReview         Boolean        @default(false)
+  warnings               Json
+  details                Json
+  run                     CalculationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employee                Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, employeeId])
+  @@index([employeeId])
+  @@index([requiresReview])
+}
+
+model WorkCode {
+  code         String           @id
+  label        String
+  behavior     WorkCodeBehavior
+  fixedMinutes Int?
+  isActive     Boolean          @default(true)
+  sortOrder    Int              @default(100)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([isActive, sortOrder])
+}

@@ -1,0 +1,1695 @@
+@if (isMobileScan) {
+  <main class="mobile-scan">
+    <header>
+      <span class="brand-mark">BHM</span>
+      <div>
+        <p class="eyebrow">Scan mobile</p>
+        <h1>Feuilles horaires</h1>
+      </div>
+    </header>
+    @if (scanSent()) {
+      <section class="mobile-upload success-state">
+        <div class="success-symbol" aria-hidden="true">✓</div>
+        <h2>Documents envoyés</h2>
+        <p>L’extraction document par document est terminée.</p>
+        <button class="primary" type="button" (click)="sendAnotherScanBatch()">
+          Envoyer un autre lot
+        </button>
+      </section>
+    } @else {
+      <section class="mobile-upload">
+        <div class="camera-symbol" aria-hidden="true">+</div>
+        <h2>Ajouter les feuilles</h2>
+        <p>Photographiez ou sélectionnez plusieurs feuilles, puis envoyez-les ensemble.</p>
+        <label class="button primary mobile-picker">
+          Prendre des photos ou importer
+          <input
+            type="file"
+            multiple
+            accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+            capture="environment"
+            (change)="addScanFiles($event)"
+          />
+        </label>
+      </section>
+
+      @if (scanFiles().length) {
+        <section class="mobile-files">
+          <header>
+            <div>
+              <h2>{{ scanFiles().length }} document(s)</h2>
+              <p>Maximum 12 fichiers par envoi.</p>
+            </div>
+            <label class="icon-button" title="Ajouter d’autres documents">
+              +
+              <input
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                capture="environment"
+                (change)="addScanFiles($event)"
+              />
+            </label>
+          </header>
+          <div class="mobile-file-list">
+            @for (file of scanFiles(); track $index) {
+              <div>
+                <span class="file-type">{{ file.type === 'application/pdf' ? 'PDF' : 'IMG' }}</span>
+                <strong>{{ file.name }}</strong>
+                <button
+                  type="button"
+                  title="Retirer"
+                  [disabled]="scanBusy()"
+                  (click)="removeScanFile($index)"
+                >
+                  ×
+                </button>
+              </div>
+            }
+          </div>
+          <button
+            class="primary send-button"
+            type="button"
+            [disabled]="scanBusy()"
+            (click)="sendScans()"
+          >
+            {{ scanBusy() ? 'Extraction en cours...' : 'Envoyer les documents' }}
+          </button>
+          @if (scanBusy()) {
+            <p class="processing-note">
+              Claude analyse chaque document séparément. Gardez cette page ouverte.
+            </p>
+          }
+        </section>
+      }
+      @if (scanError()) {
+        <p class="alert mobile-alert">{{ scanError() }}</p>
+      }
+    }
+  </main>
+} @else {
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">BHM</span>
+        <div>
+          <strong>Time Management</strong>
+          <small>Gestion des horaires</small>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Navigation principale">
+        @for (group of navigationGroups; track group.label) {
+          <section class="nav-group">
+            <span class="nav-group-label">{{ group.label }}</span>
+            @for (item of group.items; track item.view) {
+              <button
+                type="button"
+                [class.active]="activeView() === item.view"
+                [attr.aria-current]="activeView() === item.view ? 'page' : null"
+                (click)="setView(item.view)"
+              >
+                <strong>{{ item.label }}</strong>
+                <span>{{ item.helper }}</span>
+              </button>
+            }
+          </section>
+        }
+      </nav>
+
+      <div class="sidebar-note">
+        <span>Cycle unique</span>
+        <strong>{{ cycleLabel() }}</strong>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">BHM Construction</p>
+          <h1>{{ activeViewLabel() }}</h1>
+          <p>{{ cycleLabel() }}</p>
+        </div>
+        <label class="month-control">
+          <span>Mois de paie</span>
+          <input
+            type="month"
+            [ngModel]="payrollMonth()"
+            (ngModelChange)="changeMonth($event)"
+          />
+        </label>
+      </header>
+
+      @if (cycleError()) {
+        <p class="alert">{{ cycleError() }}</p>
+      }
+
+      @switch (activeView()) {
+        @case ('overview') {
+          <section class="overview-heading">
+            <div>
+              <p class="eyebrow">Happy flow</p>
+              <h2>Préparer l’opération mensuelle</h2>
+            </div>
+            <div class="actions">
+              @if (employeeList() || scanBatch() || calculationStatus()?.run) {
+                <button
+                  class="danger"
+                  type="button"
+                  (click)="openReset()"
+                >
+                  Réinitialiser
+                </button>
+              }
+              <button
+                class="primary"
+                type="button"
+                [disabled]="!calculationStatus()?.canLaunch || calculationBusy()"
+                (click)="launchCalculation()"
+              >
+                {{
+                  calculationBusy()
+                    ? 'Calcul en cours...'
+                    : calculationStatus()?.run
+                      ? 'Recalculer l’opération'
+                      : 'Lancer l’opération'
+                }}
+              </button>
+            </div>
+          </section>
+
+          @if (calculationError()) {
+            <p class="alert">{{ calculationError() }}</p>
+          }
+
+          <section class="flow-grid">
+            <article class="flow-item">
+              <span class="step-number">1</span>
+              <div>
+                <h3>Liste des employés</h3>
+                @if (employeeList(); as list) {
+                  <p>{{ list.fileName }} · {{ list.employees.length }} employé(s)</p>
+                  <small>Importée le {{ formatDate(list.importedAt) }}</small>
+                } @else {
+                  <p>Aucune liste active.</p>
+                }
+              </div>
+              <button type="button" (click)="setView('employees')">
+                {{ employeeList() ? 'Voir' : 'Importer' }}
+              </button>
+            </article>
+
+            <article class="flow-item">
+              <span class="step-number">2</span>
+              <div>
+                <h3>Feuilles horaires</h3>
+                @if (scanBatch(); as batch) {
+                  <p>
+                    {{ batch.documents.length }} document(s) ·
+                    {{ extractedRowCount() }} ligne(s) extraite(s)
+                  </p>
+                  <small>
+                    {{ batch.batchCount }} lot(s) ·
+                    {{
+                      batch.status === 'EXTRACTED'
+                        ? 'Dernier lot terminé'
+                        : batch.status === 'FAILED'
+                          ? 'Erreur d’extraction'
+                          : 'Extraction en cours'
+                    }}
+                  </small>
+                } @else {
+                  <p>QR permanent prêt pour le scan mobile.</p>
+                }
+              </div>
+              <div class="flow-actions">
+                <button type="button" (click)="setView('time-sheets')">
+                  Consulter
+                </button>
+                <button type="button" (click)="openQr()">QR mobile</button>
+              </div>
+            </article>
+
+            <article class="flow-item">
+              <span class="step-number">3</span>
+              <div>
+                <h3>Rapports requis</h3>
+                @if (requiredReports(); as reports) {
+                  @if (reports.requiredCount === 0) {
+                    <p>Aucun rapport requis : aucune case T détectée.</p>
+                  } @else {
+                    <p>
+                      {{ reports.readyCount }}/{{ reports.requiredCount }}
+                      rapport(s) importé(s)
+                    </p>
+                    <small>
+                      {{
+                        reports.isReady
+                          ? 'Tous les rapports requis sont disponibles'
+                          : reports.missingCount + ' rapport(s) encore manquant(s)'
+                      }}
+                    </small>
+                  }
+                } @else {
+                  <p>Vérification des cases T...</p>
+                }
+              </div>
+              <button type="button" (click)="setView('required-reports')">
+                {{ requiredReports()?.missingCount ? 'Compléter' : 'Consulter' }}
+              </button>
+            </article>
+          </section>
+
+          @if (calculationStatus()?.run; as run) {
+            <section class="data-panel calculation-panel">
+              <header>
+                <div>
+                  <p class="eyebrow">Résultats du cycle</p>
+                  <h2>Rubriques calculées</h2>
+                  <p>
+                    {{ run.results.length }} employé(s) · {{ run.openDays }} jour(s)
+                    ouvrable(s) · ajustement {{ adjustmentLabel(run.adjustmentMinutes) }}
+                  </p>
+                </div>
+                <div class="actions">
+                  <button
+                    type="button"
+                    [disabled]="!!exportBusy()"
+                    (click)="exportAllCalculations()"
+                  >
+                    {{
+                      exportBusy() === 'global'
+                        ? 'Préparation...'
+                        : 'Exporter Excel'
+                    }}
+                  </button>
+                  <span class="badge success">
+                    Calculé le {{ formatDate(run.launchedAt) }}
+                  </span>
+                </div>
+              </header>
+              <div class="list-toolbar embedded" aria-label="Recherche des résultats">
+                <label class="search-control">
+                  <span>Rechercher</span>
+                  <input
+                    type="search"
+                    placeholder="Nom ou matricule"
+                    [ngModel]="calculationSearch()"
+                    (ngModelChange)="calculationSearch.set($event)"
+                  />
+                </label>
+                <label class="filter-control">
+                  <span>Vérification</span>
+                  <select
+                    [ngModel]="calculationFilter()"
+                    (ngModelChange)="calculationFilter.set($event)"
+                  >
+                    <option value="ALL">Tous</option>
+                    <option value="REVIEW">À vérifier</option>
+                    <option value="CORRECT">Corrects</option>
+                  </select>
+                </label>
+                <span class="filtered-count">
+                  {{ filteredCalculations(run.results).length }} résultat(s)
+                </span>
+              </div>
+              <div class="table-scroll calculation-table-wrap">
+                <table class="calculation-table">
+                  <thead>
+                    <tr>
+                      <th>Matricule</th>
+                      <th>Employé</th>
+                      <th>Heures normales</th>
+                      <th>Absences (jours)</th>
+                      <th>CP (jours)</th>
+                      <th>MA (jours)</th>
+                      <th>STC (jours)</th>
+                      <th>Supp. 50 %</th>
+                      <th>Supp. 100 %</th>
+                      <th>Déplacement</th>
+                      <th>Vérification</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (
+                      result of filteredCalculations(run.results);
+                      track result.id
+                    ) {
+                      <tr
+                        [class.needs-review]="result.requiresReview"
+                        (click)="openCalculation(result)"
+                      >
+                        <td><strong>{{ result.employee.matricule }}</strong></td>
+                        <td>
+                          {{ result.employee.firstName }} {{ result.employee.lastName }}
+                        </td>
+                        <td>{{ minutesLabel(result.normalMinutes) }}</td>
+                        <td>{{ result.absenceDays }}</td>
+                        <td>{{ result.paidLeaveDays }}</td>
+                        <td>{{ result.sickLeaveDays }}</td>
+                        <td>{{ result.stcDays }}</td>
+                        <td>{{ minutesLabel(result.overtimeMiniMinutes) }}</td>
+                        <td>{{ minutesLabel(result.overtimeMaxiMinutes) }}</td>
+                        <td>{{ result.displacementDays }}</td>
+                        <td>
+                          <span
+                            class="badge"
+                            [class.success]="!result.requiresReview"
+                          >
+                            {{ result.requiresReview ? 'À vérifier' : 'Correcte' }}
+                          </span>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          } @else {
+            <section class="empty-result">
+              <h2>Résultats du cycle</h2>
+              @if (calculationStatus()?.canLaunch) {
+                <p>Les documents sont prêts. Lancez l’opération pour calculer les rubriques.</p>
+              } @else {
+                <p>Complétez les documents requis avant de lancer le calcul.</p>
+              }
+            </section>
+          }
+        }
+
+        @case ('time-sheets') {
+          <section class="page-panel">
+            <div>
+              <p class="eyebrow">Suivi OCR</p>
+              <h2>Feuilles horaires</h2>
+              <p>
+                Consultez les feuilles reçues et contrôlez uniquement les cases
+                signalées par l’extraction.
+              </p>
+            </div>
+            <button class="primary" type="button" (click)="openQr()">
+              Scanner avec le téléphone
+            </button>
+          </section>
+
+          @if (scanBatch(); as batch) {
+            <section class="time-sheet-summary">
+              <div>
+                <strong>{{ batch.documents.length }}</strong>
+                <span>feuille(s)</span>
+              </div>
+              <div>
+                <strong>{{ extractedRowCount() }}</strong>
+                <span>ligne(s) extraite(s)</span>
+              </div>
+              <div>
+                <strong>{{ batch.batchCount }}</strong>
+                <span>lot(s) envoyé(s)</span>
+              </div>
+            </section>
+
+            <section class="list-toolbar" aria-label="Recherche des feuilles horaires">
+              <label class="search-control">
+                <span>Rechercher</span>
+                <input
+                  type="search"
+                  placeholder="Nom du fichier"
+                  [ngModel]="timeSheetSearch()"
+                  (ngModelChange)="timeSheetSearch.set($event)"
+                />
+              </label>
+              <label class="filter-control">
+                <span>État</span>
+                <select
+                  [ngModel]="timeSheetFilter()"
+                  (ngModelChange)="timeSheetFilter.set($event)"
+                >
+                  <option value="ALL">Tous</option>
+                  <option value="CONTROL">À contrôler</option>
+                  <option value="VERIFIED">Vérifiées</option>
+                  <option value="FAILED">Échecs</option>
+                </select>
+              </label>
+              <span class="filtered-count">
+                {{ filteredTimeSheets().length }} résultat(s)
+              </span>
+            </section>
+
+            <section class="operational-table-wrap">
+              <table class="operational-table">
+                <thead>
+                  <tr>
+                    <th>Feuille</th>
+                    <th>Date d’envoi</th>
+                    <th>Extraction</th>
+                    <th>État</th>
+                    <th class="actions-column">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (document of filteredTimeSheets(); track document.id) {
+                    <tr
+                      [class.control-row]="documentNeedsReview(document)"
+                      [class.failed-row]="documentExtractionFailed(document)"
+                    >
+                      <td>
+                        <div class="file-identity">
+                          <span class="file-type">
+                            {{ document.mimeType === 'application/pdf' ? 'PDF' : 'IMG' }}
+                          </span>
+                          <strong>{{ document.fileName }}</strong>
+                        </div>
+                      </td>
+                      <td>{{ formatDate(document.uploadedAt) }}</td>
+                      <td>
+                        <strong>{{ document.extractedRows.length }}</strong>
+                        <span class="cell-helper"> ligne(s)</span>
+                      </td>
+                      <td>
+                        <span
+                          class="sheet-status"
+                          [class.control]="documentNeedsReview(document)"
+                          [class.success]="documentIsVerified(document)"
+                          [class.failed]="documentExtractionFailed(document)"
+                        >
+                          {{
+                            documentNeedsReview(document)
+                              ? 'À contrôler'
+                              : documentExtractionFailed(document)
+                                ? 'Extraction échouée'
+                                : documentIsVerified(document)
+                                  ? 'Vérifiée'
+                                  : 'Archivée'
+                          }}
+                        </span>
+                      </td>
+                      <td>
+                        <div class="row-actions">
+                          @if (document.extractedRows.length) {
+                            <button
+                              class="compact-action primary-action"
+                              type="button"
+                              (click)="openExtraction(document)"
+                            >
+                              Contrôler
+                            </button>
+                          }
+                          @if (document.storageUrl) {
+                            <a
+                              class="compact-action"
+                              [href]="document.storageUrl"
+                              target="_blank"
+                              rel="noopener"
+                            >
+                              Source
+                            </a>
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="5" class="list-empty">
+                        Aucune feuille ne correspond à la recherche.
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </section>
+          } @else {
+            <section class="empty-result compact">
+              <h2>Aucune feuille reçue</h2>
+              <p>Utilisez le QR permanent pour envoyer les premières feuilles.</p>
+            </section>
+          }
+        }
+
+        @case ('employees') {
+          <section class="page-panel employee-heading">
+            <div>
+              <p class="eyebrow">Référence active</p>
+              <h2>Liste des employés</h2>
+              <p>Une seule liste sera utilisée pour reconnaître les noms extraits.</p>
+            </div>
+            <div class="actions">
+              @if (employeeList()) {
+                <button class="danger" type="button" (click)="removeEmployeeList()">
+                  Supprimer
+                </button>
+              }
+              <label class="button primary">
+                {{ employeeList() ? 'Mettre à jour' : 'Importer la liste' }}
+                <input
+                  type="file"
+                  accept=".xlsx"
+                  (change)="selectEmployeeFile($event)"
+                />
+              </label>
+            </div>
+          </section>
+
+          @if (employeeImportError()) {
+            <p class="alert">{{ employeeImportError() }}</p>
+          }
+
+          @if (employeeImportBusy() && !employeePreview()) {
+            <section class="status-panel">Analyse du fichier en cours...</section>
+          }
+
+          @if (employeePreview() || employeeList()) {
+            <section class="list-toolbar" aria-label="Recherche des employés">
+              <label class="search-control">
+                <span>Rechercher</span>
+                <input
+                  type="search"
+                  placeholder="Nom, prénom ou matricule"
+                  [ngModel]="employeeSearch()"
+                  (ngModelChange)="employeeSearch.set($event)"
+                />
+              </label>
+            </section>
+          }
+
+          @if (employeePreview(); as preview) {
+            <section class="data-panel preview-panel">
+              <header>
+                <div>
+                  <p class="eyebrow">Prévisualisation automatique</p>
+                  <h2>{{ preview.fileName }}</h2>
+                  <p>
+                    {{ preview.total }} employé(s) · {{ preview.newCount }} nouveau(x) ·
+                    {{ preview.updatedCount }} modifié(s) ·
+                    {{ preview.unchangedCount }} inchangé(s)
+                  </p>
+                </div>
+                <div class="actions">
+                  <button type="button" (click)="cancelEmployeePreview()">Annuler</button>
+                  <button
+                    class="primary"
+                    type="button"
+                    [disabled]="employeeImportBusy()"
+                    (click)="confirmEmployeeImport()"
+                  >
+                    Confirmer
+                  </button>
+                </div>
+              </header>
+              <div class="table-scroll employee-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Matricule</th>
+                      <th>Prénom</th>
+                      <th>Nom</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (
+                      employee of filteredEmployees(preview.employees);
+                      track employee.matricule
+                    ) {
+                      <tr>
+                        <td><strong>{{ employee.matricule }}</strong></td>
+                        <td>{{ employee.firstName }}</td>
+                        <td>{{ employee.lastName }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          } @else if (employeeList(); as list) {
+            <section class="data-panel">
+              <header>
+                <div>
+                  <h2>{{ list.fileName }}</h2>
+                  <p>Liste active importée le {{ formatDate(list.importedAt) }}</p>
+                </div>
+                <div class="list-summary">
+                  <strong>{{ list.employees.length }}</strong>
+                  <span>employé(s)</span>
+                  <span class="badge success">Active</span>
+                </div>
+              </header>
+              <div class="table-scroll employee-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Matricule</th>
+                      <th>Prénom</th>
+                      <th>Nom</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (
+                      employee of filteredEmployees(list.employees);
+                      track employee.id
+                    ) {
+                      <tr>
+                        <td><strong>{{ employee.matricule }}</strong></td>
+                        <td>{{ employee.firstName }}</td>
+                        <td>{{ employee.lastName }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          } @else {
+            <section class="empty-result compact">
+              <h2>Aucune liste active</h2>
+              <p>Importez un fichier .xlsx avec les colonnes Matricule, Prenom et Nom.</p>
+            </section>
+          }
+        }
+
+        @case ('required-reports') {
+          <section class="page-panel">
+            <div>
+              <p class="eyebrow">Cases T</p>
+              <h2>Rapports pointeuse requis</h2>
+              <p>Un rapport mensuel suffit par employé, quel que soit le nombre de cases T.</p>
+            </div>
+            @if (requiredReports(); as reports) {
+              <div class="report-progress" [class.complete]="reports.isReady">
+                <strong>{{ reports.readyCount }}/{{ reports.requiredCount }}</strong>
+                <span>{{ reports.isReady ? 'Prêt' : 'Importé(s)' }}</span>
+              </div>
+            }
+          </section>
+
+          @if (reportError()) {
+            <p class="alert">{{ reportError() }}</p>
+          }
+
+          @if (requiredReports(); as reports) {
+            @if (reports.employees.length) {
+              <section class="list-toolbar" aria-label="Recherche des rapports requis">
+                <label class="search-control">
+                  <span>Rechercher</span>
+                  <input
+                    type="search"
+                    placeholder="Nom ou matricule"
+                    [ngModel]="reportSearch()"
+                    (ngModelChange)="reportSearch.set($event)"
+                  />
+                </label>
+                <label class="filter-control">
+                  <span>Disponibilité</span>
+                  <select
+                    [ngModel]="reportFilter()"
+                    (ngModelChange)="reportFilter.set($event)"
+                  >
+                    <option value="ALL">Tous</option>
+                    <option value="MISSING">Manquants</option>
+                    <option value="READY">Importés</option>
+                  </select>
+                </label>
+                <span class="filtered-count">
+                  {{ filteredReports(reports).length }} résultat(s)
+                </span>
+              </section>
+
+              <section class="operational-table-wrap">
+                <table class="operational-table report-table">
+                  <thead>
+                    <tr>
+                      <th>Employé</th>
+                      <th>Dates avec T</th>
+                      <th>Rapport</th>
+                      <th>État</th>
+                      <th class="actions-column">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of filteredReports(reports); track item.employee.id) {
+                      <tr [class.ready-row]="item.report">
+                        <td>
+                          <div class="employee-identity">
+                            <span class="employee-avatar">
+                              {{ item.employee.firstName.charAt(0) }}{{ item.employee.lastName.charAt(0) }}
+                            </span>
+                            <div>
+                              <strong>
+                                {{ item.employee.firstName }} {{ item.employee.lastName }}
+                              </strong>
+                              <small>{{ item.employee.matricule }}</small>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div class="required-days inline-days">
+                            @for (date of item.requiredDates.slice(0, 4); track date) {
+                              <small [class.unresolved]="item.unresolvedDates.includes(date)">
+                                {{ dayLabel(date) }}
+                              </small>
+                            }
+                            @if (item.requiredDates.length > 4) {
+                              <small class="more-days">
+                                +{{ item.requiredDates.length - 4 }}
+                              </small>
+                            }
+                          </div>
+                        </td>
+                        <td>
+                          @if (item.report) {
+                            <span class="report-file-name">{{ item.report.fileName }}</span>
+                          } @else {
+                            <span class="cell-helper">Aucun fichier</span>
+                          }
+                        </td>
+                        <td>
+                          @if (item.report) {
+                            <span class="sheet-status success">Importé</span>
+                            @if (item.unresolvedDates.length) {
+                              <small class="status-detail warning-text">
+                                {{ item.unresolvedDates.length }} date(s) à vérifier
+                              </small>
+                            }
+                          } @else {
+                            <span class="sheet-status control">Manquant</span>
+                          }
+                        </td>
+                        <td>
+                          <div class="row-actions">
+                            @if (item.report) {
+                              <button
+                                class="compact-action"
+                                type="button"
+                                (click)="openTimeClockReport(item)"
+                              >
+                                Voir
+                              </button>
+                            }
+                            <label
+                              class="compact-action"
+                              [class.primary-action]="!item.report"
+                              [class.disabled]="reportImportBusy() === item.employee.id"
+                            >
+                              {{
+                                reportImportBusy() === item.employee.id
+                                  ? 'Import...'
+                                  : item.report
+                                    ? 'Remplacer'
+                                    : 'Importer'
+                              }}
+                              <input
+                                type="file"
+                                accept=".xls,.xlsx"
+                                [disabled]="reportImportBusy() === item.employee.id"
+                                (change)="selectTimeClockFile(item.employee.id, $event)"
+                              />
+                            </label>
+                          </div>
+                        </td>
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td colspan="5" class="list-empty">
+                          Aucun rapport ne correspond à la recherche.
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </section>
+            } @else {
+              <section class="empty-result compact">
+                <h2>Aucun rapport requis</h2>
+                <p>
+                  Les employés concernés apparaîtront ici après l’extraction
+                  d’une feuille contenant au moins une case T.
+                </p>
+              </section>
+            }
+          } @else {
+            <section class="status-panel">Chargement des besoins...</section>
+          }
+        }
+
+        @case ('calculation-history') {
+          @if (historyError()) {
+            <p class="alert">{{ historyError() }}</p>
+          }
+
+          @if (selectedHistoryRun(); as run) {
+            <section class="page-panel history-heading">
+              <div>
+                <p class="eyebrow">Calcul archivé</p>
+                <h2>{{ periodLabel(run.cycle) }}</h2>
+                <p>
+                  {{ run.results.length }} employé(s) · calculé le
+                  {{ formatDate(run.launchedAt) }}
+                </p>
+              </div>
+              <div class="actions">
+                <button type="button" (click)="closeHistoryRun()">
+                  Retour à l’historique
+                </button>
+                <button
+                  class="primary"
+                  type="button"
+                  [disabled]="!!historyBusy()"
+                  (click)="exportHistoryRun(run)"
+                >
+                  {{
+                    historyBusy() === 'export:' + run.id
+                      ? 'Préparation...'
+                      : 'Exporter Excel'
+                  }}
+                </button>
+              </div>
+            </section>
+
+            <section class="history-summary">
+              <div>
+                <span>Jours ouvrables</span>
+                <strong>{{ run.openDays }}</strong>
+              </div>
+              <div>
+                <span>Ajustement 22 jours</span>
+                <strong>{{ adjustmentLabel(run.adjustmentMinutes) }}</strong>
+              </div>
+              <div>
+                <span>Employés</span>
+                <strong>{{ run.results.length }}</strong>
+              </div>
+              <div>
+                <span>À vérifier</span>
+                <strong>{{ historyReviewCount(run.results) }}</strong>
+              </div>
+            </section>
+
+            <section class="data-panel calculation-panel">
+              <header>
+                <div>
+                  <h2>Rubriques calculées</h2>
+                  <p>Instantané conservé en lecture seule.</p>
+                </div>
+              </header>
+              <div class="list-toolbar embedded" aria-label="Recherche dans le calcul archivé">
+                <label class="search-control">
+                  <span>Rechercher</span>
+                  <input
+                    type="search"
+                    placeholder="Nom ou matricule"
+                    [ngModel]="historyResultSearch()"
+                    (ngModelChange)="historyResultSearch.set($event)"
+                  />
+                </label>
+                <label class="filter-control">
+                  <span>Vérification</span>
+                  <select
+                    [ngModel]="historyResultFilter()"
+                    (ngModelChange)="historyResultFilter.set($event)"
+                  >
+                    <option value="ALL">Tous</option>
+                    <option value="REVIEW">À vérifier</option>
+                    <option value="CORRECT">Corrects</option>
+                  </select>
+                </label>
+                <span class="filtered-count">
+                  {{ filteredHistoryResults(run.results).length }} résultat(s)
+                </span>
+              </div>
+              <div class="table-scroll calculation-table-wrap">
+                <table class="calculation-table">
+                  <thead>
+                    <tr>
+                      <th>Matricule</th>
+                      <th>Employé</th>
+                      <th>Heures normales</th>
+                      <th>Absences (jours)</th>
+                      <th>CP (jours)</th>
+                      <th>MA (jours)</th>
+                      <th>STC (jours)</th>
+                      <th>Supp. 50 %</th>
+                      <th>Supp. 100 %</th>
+                      <th>Déplacement</th>
+                      <th>Vérification</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (
+                      result of filteredHistoryResults(run.results);
+                      track result.id
+                    ) {
+                      <tr
+                        [class.needs-review]="result.requiresReview"
+                        (click)="openHistoryCalculation(run, result)"
+                      >
+                        <td><strong>{{ result.employee.matricule }}</strong></td>
+                        <td>
+                          {{ result.employee.firstName }} {{ result.employee.lastName }}
+                        </td>
+                        <td>{{ minutesLabel(result.normalMinutes) }}</td>
+                        <td>{{ result.absenceDays }}</td>
+                        <td>{{ result.paidLeaveDays }}</td>
+                        <td>{{ result.sickLeaveDays }}</td>
+                        <td>{{ result.stcDays }}</td>
+                        <td>{{ minutesLabel(result.overtimeMiniMinutes) }}</td>
+                        <td>{{ minutesLabel(result.overtimeMaxiMinutes) }}</td>
+                        <td>{{ result.displacementDays }}</td>
+                        <td>
+                          <span
+                            class="badge"
+                            [class.success]="!result.requiresReview"
+                          >
+                            {{ result.requiresReview ? 'À vérifier' : 'Correcte' }}
+                          </span>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          } @else {
+            <section class="page-panel">
+              <div>
+                <p class="eyebrow">Archives mensuelles</p>
+                <h2>Historique des calculs</h2>
+                <p>
+                  Chaque cycle réinitialisé reste consultable avec ses rubriques
+                  et son détail journalier.
+                </p>
+              </div>
+            </section>
+
+            <section class="data-panel">
+              <div class="list-toolbar embedded history-toolbar" aria-label="Recherche dans l’historique">
+                <label class="search-control">
+                  <span>Rechercher une période</span>
+                  <input
+                    type="search"
+                    placeholder="Ex. 2026-07"
+                    [ngModel]="historySearch()"
+                    (ngModelChange)="historySearch.set($event)"
+                  />
+                </label>
+                <span class="filtered-count">
+                  {{ filteredCalculationHistory().length }} cycle(s)
+                </span>
+              </div>
+
+              @if (filteredCalculationHistory().length) {
+                <div class="table-scroll history-table-wrap">
+                  <table class="history-table">
+                    <thead>
+                      <tr>
+                        <th>Période</th>
+                        <th>Calcul effectué</th>
+                        <th>Employés</th>
+                        <th>Heures normales</th>
+                        <th>Contrôle</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (item of filteredCalculationHistory(); track item.id) {
+                        <tr>
+                          <td>
+                            <strong>{{ item.cycle.payrollMonth }}</strong>
+                            <small>{{ periodLabel(item.cycle) }}</small>
+                          </td>
+                          <td>
+                            {{ formatDate(item.launchedAt) }}
+                            @if (item.archivedAt) {
+                              <small>Archivé le {{ formatDate(item.archivedAt) }}</small>
+                            }
+                          </td>
+                          <td>{{ item.employeeCount }}</td>
+                          <td>{{ minutesLabel(item.totals.normalMinutes) }}</td>
+                          <td>
+                            <span
+                              class="badge"
+                              [class.success]="item.reviewCount === 0"
+                            >
+                              {{
+                                item.reviewCount
+                                  ? item.reviewCount + ' à vérifier'
+                                  : 'Correct'
+                              }}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              class="compact-action"
+                              type="button"
+                              [disabled]="!!historyBusy()"
+                              (click)="openHistoryRun(item)"
+                            >
+                              {{
+                                historyBusy() === item.id
+                                  ? 'Chargement...'
+                                  : 'Consulter'
+                              }}
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <div class="empty-result compact">
+                  <h2>Aucun calcul archivé</h2>
+                  <p>Le premier historique apparaîtra après la réinitialisation d’un cycle calculé.</p>
+                </div>
+              }
+            </section>
+          }
+        }
+
+        @case ('holidays') {
+          <section class="page-panel">
+            <div>
+              <p class="eyebrow">Calendrier métier</p>
+              <h2>Jours fériés</h2>
+              <p>Ils sont appliqués au cycle du {{ cycleLabel() }}.</p>
+            </div>
+          </section>
+          <section class="data-panel holiday-panel">
+            <form (submit)="$event.preventDefault(); createHoliday()">
+              <label>
+                <span>Date</span>
+                <input
+                  type="date"
+                  [ngModel]="holidayDate()"
+                  (ngModelChange)="holidayDate.set($event)"
+                  name="holidayDate"
+                />
+              </label>
+              <label>
+                <span>Libellé</span>
+                <input
+                  type="text"
+                  placeholder="Ex. Fête nationale"
+                  [ngModel]="holidayLabel()"
+                  (ngModelChange)="holidayLabel.set($event)"
+                  name="holidayLabel"
+                />
+              </label>
+              <button
+                class="primary"
+                type="submit"
+                [disabled]="holidayBusy() || !holidayDate() || !holidayLabel().trim()"
+              >
+                Ajouter
+              </button>
+            </form>
+            @if (holidayError()) {
+              <p class="alert">{{ holidayError() }}</p>
+            }
+            @if (holidays().length) {
+              <div class="holiday-list">
+                @for (holiday of holidays(); track holiday.id) {
+                  <article>
+                    <div>
+                      <strong>{{ dayLabel(holiday.date.slice(0, 10)) }}</strong>
+                      <span>{{ holiday.label }}</span>
+                    </div>
+                    <button
+                      class="danger"
+                      type="button"
+                      [disabled]="holidayBusy()"
+                      (click)="removeHoliday(holiday.id)"
+                    >
+                      Supprimer
+                    </button>
+                  </article>
+                }
+              </div>
+            } @else {
+              <p class="holiday-empty">Aucun jour férié enregistré sur cette période.</p>
+            }
+          </section>
+        }
+
+        @case ('documents') {
+          <section class="page-panel">
+            <div>
+              <p class="eyebrow">Traçabilité simple</p>
+              <h2>Documents archivés</h2>
+              <p>Les fichiers importés et scannés resteront consultables avec leur date.</p>
+            </div>
+          </section>
+          <section class="data-panel">
+            <header>
+              <div>
+                <h2>Tous les fichiers</h2>
+                <p>Documents actifs et archivés, classés du plus récent au plus ancien.</p>
+              </div>
+            </header>
+            <div class="list-toolbar embedded" aria-label="Recherche des archives">
+              <label class="search-control">
+                <span>Rechercher</span>
+                <input
+                  type="search"
+                  placeholder="Document, employé ou période"
+                  [ngModel]="archiveSearch()"
+                  (ngModelChange)="archiveSearch.set($event)"
+                />
+              </label>
+              <label class="filter-control">
+                <span>Type</span>
+                <select
+                  [ngModel]="archiveType()"
+                  (ngModelChange)="archiveType.set($event)"
+                >
+                  <option value="ALL">Tous</option>
+                  <option value="TIME_SHEET">Feuilles horaires</option>
+                  <option value="TIME_CLOCK">Rapports pointeuse</option>
+                  <option value="EMPLOYEE_LIST">Listes employés</option>
+                </select>
+              </label>
+              <span class="filtered-count">
+                {{ filteredArchives().length }} résultat(s)
+              </span>
+            </div>
+            @if (archivedDocuments().length) {
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Document</th>
+                      <th>Contexte</th>
+                      <th>Période</th>
+                      <th>Date d’import</th>
+                      <th>Fichier</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (
+                      item of filteredArchives();
+                      track item.type + ':' + item.id
+                    ) {
+                      <tr>
+                        <td>
+                          <span class="badge">{{ archiveTypeLabel(item.type) }}</span>
+                        </td>
+                        <td><strong>{{ item.fileName }}</strong></td>
+                        <td>{{ item.detail }}</td>
+                        <td>{{ item.payrollMonth ?? '—' }}</td>
+                        <td>{{ formatDate(item.importedAt) }}</td>
+                        <td>
+                          @if (item.storageUrl) {
+                            <a
+                              class="archive-link"
+                              [href]="item.storageUrl"
+                              target="_blank"
+                              rel="noopener"
+                            >
+                              Ouvrir
+                            </a>
+                          } @else {
+                            <span class="empty-value">Indisponible</span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <p>Aucun document archivé.</p>
+            }
+          </section>
+        }
+      }
+    </main>
+  </div>
+
+  @if (showQr()) {
+    <div class="modal-backdrop" (click)="closeQr()">
+      <section class="qr-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+        <header>
+          <div>
+            <p class="eyebrow">Scan mobile</p>
+            <h2>Ouvrir sur le téléphone</h2>
+          </div>
+          <button class="icon-button" type="button" title="Fermer" (click)="closeQr()">×</button>
+        </header>
+        @if (scanQr(); as qr) {
+          <img [src]="qr.dataUrl" alt="QR code vers le scan mobile" />
+          <p>Scannez ce QR avec le téléphone du Responsable RH.</p>
+          <a [href]="qr.mobileUrl" target="_blank" rel="noopener">Ouvrir directement</a>
+        } @else {
+          <p>Génération du QR...</p>
+        }
+      </section>
+    </div>
+  }
+
+  @if (showReset()) {
+    <div class="modal-backdrop" (click)="closeReset()">
+      <section
+        class="reset-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reset-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="reset-icon" aria-hidden="true">R</div>
+        <div>
+          <p class="eyebrow">Nouveau traitement</p>
+          <h2 id="reset-title">Réinitialiser le cycle actif ?</h2>
+          <p>
+            Le calcul actuel sera archivé avec tout son détail. Les feuilles
+            horaires, extractions et rapports pointeuse actifs seront remis à
+            zéro. Les fichiers archivés et les jours fériés seront conservés.
+          </p>
+        </div>
+
+        <label class="reset-option">
+          <input
+            type="checkbox"
+            [ngModel]="resetEmployees()"
+            (ngModelChange)="resetEmployees.set($event)"
+          />
+          <span>
+            <strong>Réinitialiser aussi la liste des employés</strong>
+            <small>
+              La liste actuelle sera archivée et une nouvelle liste devra être importée.
+            </small>
+          </span>
+        </label>
+
+        @if (resetError()) {
+          <p class="alert">{{ resetError() }}</p>
+        }
+
+        <div class="reset-actions">
+          <button type="button" [disabled]="resetBusy()" (click)="closeReset()">
+            Annuler
+          </button>
+          <button
+            class="danger solid"
+            type="button"
+            [disabled]="resetBusy()"
+            (click)="confirmReset()"
+          >
+            {{ resetBusy() ? 'Réinitialisation...' : 'Confirmer' }}
+          </button>
+        </div>
+      </section>
+    </div>
+  }
+
+  @if (selectedDocument(); as document) {
+    <div class="modal-backdrop extraction-backdrop" (click)="closeExtraction()">
+      <section
+        class="extraction-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="extraction-title"
+        (click)="$event.stopPropagation()"
+      >
+        <header class="extraction-header">
+          <div>
+            <p class="eyebrow">Résultat du document</p>
+            <h2 id="extraction-title">{{ document.fileName }}</h2>
+            <p>
+              {{ document.extractedRows.length }} ligne(s) extraite(s) ·
+              modifications enregistrées automatiquement
+            </p>
+          </div>
+          <div class="actions">
+            @if (document.storageUrl) {
+              <a
+                class="button"
+                [href]="document.storageUrl"
+                target="_blank"
+                rel="noopener"
+              >
+                Voir le fichier
+              </a>
+            }
+            <button
+              class="icon-button"
+              type="button"
+              title="Fermer"
+              (click)="closeExtraction()"
+            >
+              ×
+            </button>
+          </div>
+        </header>
+
+        <div class="review-legend" aria-label="Légende des vérifications">
+          <span><i class="review-dot orange"></i> Confiance 60 %</span>
+          <span><i class="review-dot red"></i> Confiance inférieure à 60 %</span>
+          <span><i class="calendar-shade"></i> Week-end ou jour férié</span>
+          <span>Une modification manuelle valide la case.</span>
+        </div>
+
+        @if (extractionError()) {
+          <p class="alert">{{ extractionError() }}</p>
+        }
+
+        <div class="extraction-table-wrap">
+          <table class="extraction-table">
+            <thead>
+              <tr>
+                <th class="employee-column">Employé</th>
+                <th class="status-column">État</th>
+                @for (day of document.extractedRows[0]?.days ?? []; track day.date) {
+                  <th
+                    class="day-column"
+                    [class.non-working-day]="isNonWorkingDay(day.date)"
+                    [title]="nonWorkingDayLabel(day.date)"
+                  >
+                    {{ dayLabel(day.date) }}
+                  </th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of document.extractedRows; track row.id) {
+                <tr [class.row-review]="row.requiresReview">
+                  <td class="employee-column">
+                    <strong>{{ row.matchedFullName || row.extractedFullName }}</strong>
+                    @if (row.matchedFullName && row.matchedFullName !== row.extractedFullName) {
+                      <small>Lu : {{ row.extractedFullName }}</small>
+                    }
+                  </td>
+                  <td class="status-column">
+                    <span class="badge" [class.success]="!row.requiresReview">
+                      {{ row.requiresReview ? 'Ligne à vérifier' : 'Correcte' }}
+                    </span>
+                  </td>
+                  @for (day of row.days; track day.date) {
+                    <td
+                      class="day-cell"
+                      [class.non-working-day]="isNonWorkingDay(day.date)"
+                      [class.review-orange]="day.needsReview && day.confidence === 0.6"
+                      [class.review-red]="day.needsReview && day.confidence < 0.6"
+                    >
+                      <input
+                        type="text"
+                        maxlength="6"
+                        [value]="day.value"
+                        [disabled]="savingCell() === row.id + ':' + day.date"
+                        [attr.aria-label]="
+                          (row.matchedFullName || row.extractedFullName) +
+                          ' le ' +
+                          dayLabel(day.date)
+                        "
+                        [title]="confidenceLabel(day)"
+                        (keydown.enter)="$any($event.target).blur()"
+                        (blur)="
+                          saveExtractedDay(row, day, $any($event.target))
+                        "
+                      />
+                      @if (day.needsReview) {
+                        <i
+                          class="review-dot"
+                          [class.orange]="day.confidence === 0.6"
+                          [class.red]="day.confidence < 0.6"
+                          [title]="confidenceLabel(day)"
+                        ></i>
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  }
+
+  @if (selectedTimeClockReport(); as item) {
+    <div class="modal-backdrop" (click)="closeTimeClockReport()">
+      <section
+        class="report-modal"
+        role="dialog"
+        aria-modal="true"
+        (click)="$event.stopPropagation()"
+      >
+        <header>
+          <div>
+            <p class="eyebrow">Rapport pointeuse</p>
+            <h2>{{ item.employee.firstName }} {{ item.employee.lastName }}</h2>
+            <p>{{ item.report?.fileName }}</p>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            title="Fermer"
+            (click)="closeTimeClockReport()"
+          >
+            ×
+          </button>
+        </header>
+        <div class="report-edit-note">
+          <span>Modifiez une durée au format HH:MM puis quittez la case pour enregistrer.</span>
+          <span>{{ item.requiredDates.length }} date(s) avec T</span>
+        </div>
+        @if (reportDayError()) {
+          <p class="alert report-day-alert">{{ reportDayError() }}</p>
+        }
+        <div class="time-clock-table-wrap">
+          <table class="time-clock-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type de journée</th>
+                <th>Pointages trouvés</th>
+                <th>Durée</th>
+                <th>Statut de la durée</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (date of item.requiredDates; track date) {
+                @let day = reportDay(item, date);
+                <tr [class.warning]="day?.workedMinutes === null || !day">
+                  <td>
+                    <strong>{{ dayLabel(date) }}</strong>
+                    <small>Case T</small>
+                  </td>
+                  <td>
+                    <span
+                      class="day-type"
+                      [class.worked]="day?.dayType === 'WORKED'"
+                      [class.absent]="day?.dayType === 'ABSENT'"
+                      [class.weekend]="day?.dayType === 'WEEKEND'"
+                      [class.holiday]="day?.dayType === 'HOLIDAY'"
+                    >
+                      {{ timeClockDayTypeLabel(day) }}
+                    </span>
+                    @if (day?.sourceState) {
+                      <small class="source-state">{{ day?.sourceState }}</small>
+                    }
+                  </td>
+                  <td>
+                    @if (day?.punches?.length) {
+                      <span class="punches">{{ day?.punches?.join(' · ') }}</span>
+                    } @else {
+                      <span class="muted-value">Aucun pointage</span>
+                    }
+                  </td>
+                  <td>
+                    <input
+                      class="duration-input"
+                      type="text"
+                      inputmode="decimal"
+                      placeholder="HH:MM"
+                      maxlength="6"
+                      [value]="durationInput(day)"
+                      [disabled]="savingReportDay() === item.report?.id + ':' + date"
+                      (keydown.enter)="$any($event.target).blur()"
+                      (change)="saveTimeClockDay(item, date, $any($event.target))"
+                    />
+                  </td>
+                  <td>
+                    <span
+                      class="badge"
+                      [class.success]="day?.workedMinutes !== null && !!day"
+                    >
+                      {{
+                        durationStatusLabel(day)
+                      }}
+                    </span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  }
+
+  @if (selectedCalculation(); as result) {
+    <div class="modal-backdrop" (click)="closeCalculation()">
+      <section
+        class="calculation-modal"
+        role="dialog"
+        aria-modal="true"
+        (click)="$event.stopPropagation()"
+      >
+        <header>
+          <div>
+            <p class="eyebrow">
+              {{
+                selectedCalculationHistoryRunId()
+                  ? 'Détail archivé'
+                  : 'Détail du calcul'
+              }}
+            </p>
+            <h2>{{ result.employee.firstName }} {{ result.employee.lastName }}</h2>
+            <p>{{ result.employee.matricule }}</p>
+          </div>
+          <div class="actions">
+            <button
+              type="button"
+              [disabled]="!!exportBusy()"
+              (click)="exportEmployeeCalculation(result)"
+            >
+              {{
+                exportBusy() === result.employee.id
+                  ? 'Préparation...'
+                  : 'Exporter Excel'
+              }}
+            </button>
+            <button
+              class="icon-button"
+              type="button"
+              title="Fermer"
+              (click)="closeCalculation()"
+            >
+              ×
+            </button>
+          </div>
+        </header>
+        <div class="calculation-summary">
+          <div><span>Heures normales</span><strong>{{ minutesLabel(result.normalMinutes) }}</strong></div>
+          <div><span>Absences</span><strong>{{ result.absenceDays }} j</strong></div>
+          <div><span>Congés payés CP</span><strong>{{ result.paidLeaveDays }} j</strong></div>
+          <div><span>Maladie MA</span><strong>{{ result.sickLeaveDays }} j</strong></div>
+          <div><span>Fin de contrat STC</span><strong>{{ result.stcDays }} j</strong></div>
+          <div><span>Supp. 50 %</span><strong>{{ minutesLabel(result.overtimeMiniMinutes) }}</strong></div>
+          <div><span>Supp. 100 %</span><strong>{{ minutesLabel(result.overtimeMaxiMinutes) }}</strong></div>
+          <div><span>Déplacements</span><strong>{{ result.displacementDays }}</strong></div>
+          <div>
+            <span>Ajustement 22 jours</span>
+            <strong>
+              {{ adjustmentLabel(selectedCalculationAdjustment()) }}
+            </strong>
+          </div>
+        </div>
+        @if (result.requiresReview) {
+          <div class="calculation-warning">
+            <div class="warning-mark" aria-hidden="true">!</div>
+            <div>
+              <strong>
+                {{ reviewDayCount(result) }} date(s) à vérifier
+              </strong>
+              <span>Contrôlez les lignes signalées avant l’export.</span>
+            </div>
+            @for (warning of specificCalculationWarnings(result); track warning) {
+              <small>{{ warning }}</small>
+            }
+          </div>
+        }
+        @if (calculationEditError()) {
+          <p class="alert calculation-edit-alert">{{ calculationEditError() }}</p>
+        }
+        <div class="calculation-detail-wrap">
+          <table class="calculation-detail-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Saisie feuille</th>
+                <th>Journée</th>
+                <th>Durée</th>
+                <th>Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (day of result.details; track day.date) {
+                <tr
+                  [class.needs-review]="day.requiresReview"
+                  [class.inactive-day]="day.workedMinutes === 0"
+                >
+                  <td class="detail-date">
+                    @if (day.requiresReview) {
+                      <i class="review-indicator" title="À vérifier"></i>
+                    }
+                    <strong>{{ dayLabel(day.date) }}</strong>
+                  </td>
+                  <td>
+                    <div class="calculation-values">
+                      @for (source of day.sources; track source.rowId) {
+                        <input
+                          class="calculation-value-input"
+                          type="text"
+                          maxlength="6"
+                          [value]="calculationSourceValue(day, source)"
+                          [disabled]="
+                            !!selectedCalculationHistoryRunId() ||
+                            savingCalculationCell() === source.rowId + ':' + day.date
+                          "
+                          [attr.aria-label]="
+                            'Valeur du ' + dayLabel(day.date) + ' dans ' + source.fileName
+                          "
+                          [title]="'Modifier la valeur de ' + source.fileName"
+                          (keydown.enter)="$any($event.target).blur()"
+                          (blur)="
+                            saveCalculationSource(
+                              result,
+                              day,
+                              source,
+                              $any($event.target)
+                            )
+                          "
+                        />
+                      } @empty {
+                        <span class="empty-value">—</span>
+                      }
+                    </div>
+                  </td>
+                  <td>
+                    <span
+                      class="day-kind"
+                      [class.weekend]="day.dayType === 'WEEKEND'"
+                      [class.holiday]="day.dayType === 'HOLIDAY'"
+                    >
+                      {{ calculationDayTypeLabel(day.dayType) }}
+                    </span>
+                  </td>
+                  <td class="worked-value">
+                    <strong>{{ minutesLabel(day.workedMinutes) }}</strong>
+                  </td>
+                  <td>
+                    <div class="source-links">
+                      @for (source of day.sources; track source.documentId) {
+                        @if (source.storageUrl) {
+                          <a
+                            [href]="source.storageUrl"
+                            target="_blank"
+                            rel="noopener"
+                          >
+                            Feuille {{ $index + 1 }}
+                          </a>
+                        } @else {
+                          <span class="source-label">Feuille {{ $index + 1 }}</span>
+                        }
+                      } @empty {
+                        <span class="empty-value">—</span>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "bhm-time-management-v2",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently --kill-others --names API,WEB \"npm run start:dev --workspace backend\" \"npm run start --workspace frontend\"",
+    "db:generate": "cd backend && npm exec prisma -- generate",
+    "db:migrate": "cd backend && npm exec prisma -- migrate deploy",
+    "build": "npm run build --workspace backend && npm run build --workspace frontend",
+    "test": "npm test --workspace backend -- --runInBand && npm test --workspace frontend -- --watch=false"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
