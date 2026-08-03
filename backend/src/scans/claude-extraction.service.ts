@@ -189,6 +189,7 @@ export class ClaudeExtractionService {
     if (workdayIndex === 2) return '8D';
     if (workdayIndex === 3) return '8F';
     if (workdayIndex === 4) return '9';
+    if (workdayIndex === 5 && employeeIndex === 0) return 'T';
     return '8';
   }
 
@@ -214,9 +215,9 @@ export class ClaudeExtractionService {
       'Extrais chaque vraie ligne employe visible dans la grille.',
       'Associe la ligne au meilleur employe connu a partir du nom complet. Le nom et le prenom peuvent etre inverses.',
       `Pour chaque ligne, retourne exactement une valeur pour chacune de ces dates, dans le meme ordre: ${expectedDates.join(', ')}.`,
-      'Valeurs autorisees par case: nombre d’heures, P, A, 0, X, T, F, STC, MU, RC, CP, MA, heures combinees avec D ou F, ou chaine vide.',
+      'Valeurs autorisees par case: nombre d’heures, A, 0, X, T, F, STC, MU, RC, CP, MA, heures combinees avec D ou F, ou chaine vide.',
       'Preserve exactement les codes manuscrits suivants en majuscules: STC, MU, RC, CP et MA. Ne les remplace jamais par un autre code.',
-      'A, 0 et X indiquent une absence sans heures. STC indique une fin de contrat. MU indique une mutation vers un autre chantier. RC indique une recuperation. CP indique un conge paye. MA indique une maladie.',
+      'A, 0 et X indiquent une absence sans heures. STC indique une fin de contrat. MU indique une mutation vers un autre chantier. RC indique une recuperation. CP indique un conge paye. MA indique une maladie. T indique une journée de travail à la tâche et ne représente aucune heure.',
       'Une case peut combiner une lettre et des heures, dans les deux ordres: 8D ou D8, 8F ou F8.',
       'Retourne toujours la forme canonique avec les heures en premier: 8D pour un deplacement et 8F pour un travail un jour ferie.',
       'D signifie deplacement avec les heures travaillees du meme jour. F signifie jour ferie avec les heures travaillees du meme jour.',

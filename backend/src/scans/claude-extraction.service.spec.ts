@@ -2,7 +2,7 @@ import type { ConfigService } from '@nestjs/config';
 import { ClaudeExtractionService } from './claude-extraction.service';
 
 describe('ClaudeExtractionService mock fallback', () => {
-  it('retourne une grille complete sans T lorsque le mock local est active', async () => {
+  it('retourne une grille complète avec les rubriques métier du mock local', async () => {
     const config = {
       get: jest.fn((key: string) =>
         key === 'ENABLE_MOCK_EXTRACTION' ? 'true' : undefined,
@@ -26,7 +26,7 @@ describe('ClaudeExtractionService mock fallback', () => {
 
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0].days).toHaveLength(30);
-    expect(result.rows[0].days.every((day) => day.value !== 'T')).toBe(true);
+    expect(result.rows[0].days.some((day) => day.value === 'T')).toBe(true);
     expect(result.rows[0].days.some((day) => day.value === '8D')).toBe(true);
   });
 });

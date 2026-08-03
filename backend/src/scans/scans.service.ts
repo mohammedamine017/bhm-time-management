@@ -139,9 +139,6 @@ export class ScansService {
                 matchedFullName: row.matchedFullName,
                 sourceRowLabel: row.sourceRowLabel,
                 days,
-                hasTimeClockCode: days.some(
-                  (day) => day.value.trim().toUpperCase() === 'T',
-                ),
                 requiresReview:
                   !employeeId || days.some((day) => day.needsReview),
               };
@@ -207,9 +204,6 @@ export class ScansService {
       where: { id: rowId },
       data: {
         days: days as unknown as Prisma.InputJsonValue,
-        hasTimeClockCode: days.some(
-          (day) => day.value.trim().toUpperCase() === 'T',
-        ),
         requiresReview:
           !row.employeeId || days.some((day) => day.needsReview),
       },

@@ -1,6 +1,6 @@
 export interface ArchivedDocument {
   id: string;
-  type: 'TIME_SHEET' | 'TIME_CLOCK' | 'EMPLOYEE_LIST';
+  type: 'TIME_SHEET' | 'EMPLOYEE_LIST';
   fileName: string;
   storageUrl: string | null;
   importedAt: string;

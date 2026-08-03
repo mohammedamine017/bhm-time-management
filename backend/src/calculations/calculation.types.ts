@@ -1,5 +1,3 @@
-import type { ParsedTimeClockDay } from '../time-clock/time-clock.types';
-
 export interface ScannedCalculationDay {
   date: string;
   value: string;
@@ -14,7 +12,6 @@ export interface ScannedCalculationDay {
 export interface EmployeeCalculationInput {
   employeeId: string;
   scannedDays: ScannedCalculationDay[];
-  timeClockDays: ParsedTimeClockDay[];
   holidayDates: Set<string>;
   adjustmentMinutes: number;
   cycleDates?: string[];
@@ -33,6 +30,7 @@ export interface CalculationDayDetail {
   overtimeMiniMinutes: number;
   overtimeMaxiMinutes: number;
   displacement: boolean;
+  taskDay: boolean;
   requiresReview: boolean;
   warnings: string[];
   sources: {
@@ -55,6 +53,7 @@ export interface EmployeeCalculationOutput {
   overtimeMiniMinutes: number;
   overtimeMaxiMinutes: number;
   displacementDays: number;
+  taskDays: number;
   requiresReview: boolean;
   warnings: string[];
   details: CalculationDayDetail[];

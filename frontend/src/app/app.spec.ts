@@ -37,7 +37,6 @@ describe('App', () => {
       'Vue d’ensemble',
       'Employés',
       'Feuilles horaires',
-      'Rapports requis',
       'Jours fériés',
       'Historique des calculs',
       'Documents',

@@ -1,6 +1,5 @@
 const SIMPLE_CODES = new Set([
   '0',
-  'P',
   'A',
   'T',
   'F',

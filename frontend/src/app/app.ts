@@ -18,12 +18,6 @@ import {
 } from './core/scan.models';
 import { ScanService } from './core/scan.service';
 import {
-  RequiredTimeClockEmployee,
-  RequiredTimeClockReports,
-  TimeClockDay,
-} from './core/time-clock.models';
-import { TimeClockService } from './core/time-clock.service';
-import {
   CalculationDayDetail,
   CalculationHistoryItem,
   CalculationHistoryRun,
@@ -40,7 +34,6 @@ type AppView =
   | 'overview'
   | 'employees'
   | 'time-sheets'
-  | 'required-reports'
   | 'holidays'
   | 'calculation-history'
   | 'documents';
@@ -74,15 +67,6 @@ export class App implements OnInit {
   protected readonly selectedDocument = signal<ScanDocument | null>(null);
   protected readonly savingCell = signal('');
   protected readonly extractionError = signal('');
-  protected readonly requiredReports = signal<RequiredTimeClockReports | null>(
-    null,
-  );
-  protected readonly reportImportBusy = signal('');
-  protected readonly reportError = signal('');
-  protected readonly selectedTimeClockReport =
-    signal<RequiredTimeClockEmployee | null>(null);
-  protected readonly savingReportDay = signal('');
-  protected readonly reportDayError = signal('');
   protected readonly calculationStatus = signal<CalculationStatus | null>(null);
   protected readonly calculationBusy = signal(false);
   protected readonly calculationError = signal('');
@@ -105,8 +89,6 @@ export class App implements OnInit {
   protected readonly timeSheetSearch = signal('');
   protected readonly timeSheetFilter =
     signal<'ALL' | 'CONTROL' | 'VERIFIED' | 'FAILED'>('ALL');
-  protected readonly reportSearch = signal('');
-  protected readonly reportFilter = signal<'ALL' | 'MISSING' | 'READY'>('ALL');
   protected readonly calculationSearch = signal('');
   protected readonly calculationFilter =
     signal<'ALL' | 'REVIEW' | 'CORRECT'>('ALL');
@@ -147,11 +129,6 @@ export class App implements OnInit {
           label: 'Feuilles horaires',
           helper: 'Scans et contrôles',
         },
-        {
-          view: 'required-reports',
-          label: 'Rapports requis',
-          helper: 'Employés avec T',
-        },
         { view: 'holidays', label: 'Jours fériés', helper: 'Calendrier' },
       ],
     },
@@ -175,7 +152,6 @@ export class App implements OnInit {
     private readonly cycles: CycleService,
     private readonly employees: EmployeeService,
     private readonly scans: ScanService,
-    private readonly timeClock: TimeClockService,
     private readonly calculations: CalculationService,
     private readonly holidayService: HolidayService,
     private readonly documents: DocumentService,
@@ -186,7 +162,6 @@ export class App implements OnInit {
       this.loadCycle();
       this.loadEmployees();
       this.loadScanBatch();
-      this.loadRequiredReports();
       this.loadCalculationStatus();
       this.loadCalculationHistory();
       this.loadHolidays();
@@ -198,7 +173,6 @@ export class App implements OnInit {
     this.activeView.set(view);
     this.mobileMenuOpen.set(false);
     if (view === 'time-sheets') this.loadScanBatch();
-    if (view === 'required-reports') this.loadRequiredReports();
     if (view === 'holidays') this.loadHolidays();
     if (view === 'calculation-history') this.loadCalculationHistory();
     if (view === 'documents') this.loadArchives();
@@ -223,7 +197,6 @@ export class App implements OnInit {
     this.payrollMonth.set(month);
     this.loadCycle();
     this.loadScanBatch();
-    this.loadRequiredReports();
     this.loadCalculationStatus();
     this.loadHolidays();
   }
@@ -277,7 +250,6 @@ export class App implements OnInit {
               'Les documents sont enregistrés, mais l’extraction doit être vérifiée.',
           );
         }
-        this.loadRequiredReports();
         this.loadCalculationStatus();
       },
       error: (error) => {
@@ -373,7 +345,6 @@ export class App implements OnInit {
       next: (updatedRow) => {
         this.replaceExtractedRow(updatedRow);
         this.savingCell.set('');
-        this.loadRequiredReports();
         this.loadCalculationStatus();
       },
       error: (error) => {
@@ -531,63 +502,6 @@ export class App implements OnInit {
     });
   }
 
-  protected selectTimeClockFile(employeeId: string, event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0] ?? null;
-    input.value = '';
-    if (!file) return;
-
-    this.reportImportBusy.set(employeeId);
-    this.reportError.set('');
-    this.timeClock.import(employeeId, file, this.payrollMonth()).subscribe({
-      next: (requirements) => {
-        this.requiredReports.set(requirements);
-        this.reportImportBusy.set('');
-        this.loadCalculationStatus();
-      },
-      error: (error) => {
-        this.reportError.set(
-          error.error?.message ?? 'Import du rapport impossible.',
-        );
-        this.reportImportBusy.set('');
-      },
-    });
-  }
-
-  protected openTimeClockReport(item: RequiredTimeClockEmployee) {
-    this.selectedTimeClockReport.set(item);
-    this.reportDayError.set('');
-  }
-
-  protected closeTimeClockReport() {
-    this.selectedTimeClockReport.set(null);
-    this.reportDayError.set('');
-  }
-
-  protected reportDay(
-    item: RequiredTimeClockEmployee,
-    date: string,
-  ): TimeClockDay | null {
-    return item.report?.days.find((day) => day.date === date) ?? null;
-  }
-
-  protected filteredReports(reports: RequiredTimeClockReports) {
-    const search = this.searchValue(this.reportSearch());
-    return reports.employees.filter((item) => {
-      const matchesSearch =
-        !search ||
-        this.searchValue(
-          `${item.employee.matricule} ${item.employee.firstName} ${item.employee.lastName}`,
-        ).includes(search);
-      const filter = this.reportFilter();
-      const matchesFilter =
-        filter === 'ALL' ||
-        (filter === 'READY' && Boolean(item.report)) ||
-        (filter === 'MISSING' && !item.report);
-      return matchesSearch && matchesFilter;
-    });
-  }
-
   protected minutesLabel(minutes: number | null) {
     if (minutes === null) return 'Non calculé';
     const hours = Math.floor(minutes / 60);
@@ -611,73 +525,6 @@ export class App implements OnInit {
   private isWeekendDate(date: string) {
     const weekday = new Date(`${date}T00:00:00.000Z`).getUTCDay();
     return weekday === 5 || weekday === 6;
-  }
-
-  protected timeClockDayTypeLabel(day: TimeClockDay | null) {
-    const labels: Record<TimeClockDay['dayType'], string> = {
-      WORKED: 'Travaillé',
-      ABSENT: 'Absent',
-      WEEKEND: 'Week-end',
-      HOLIDAY: 'Férié',
-      UNKNOWN: 'À vérifier',
-    };
-    return day ? labels[day.dayType] : 'À vérifier';
-  }
-
-  protected durationStatusLabel(day: TimeClockDay | null) {
-    if (!day) return 'À compléter';
-    const labels: Record<TimeClockDay['durationSource'], string> = {
-      CALCULATED: 'Calculée',
-      MANUAL: 'Corrigée manuellement',
-      STATE: 'Confirmée par l’état',
-      MISSING: 'À compléter',
-    };
-    return labels[day.durationSource];
-  }
-
-  protected durationInput(day: TimeClockDay | null) {
-    if (day?.workedMinutes === null || day?.workedMinutes === undefined) return '';
-    const hours = Math.floor(day.workedMinutes / 60);
-    return `${String(hours).padStart(2, '0')}:${String(day.workedMinutes % 60).padStart(2, '0')}`;
-  }
-
-  protected saveTimeClockDay(
-    item: RequiredTimeClockEmployee,
-    date: string,
-    input: HTMLInputElement,
-  ) {
-    if (!item.report) return;
-    const currentValue = this.durationInput(this.reportDay(item, date));
-    if (input.value.trim() === currentValue) return;
-
-    const key = `${item.report.id}:${date}`;
-    this.savingReportDay.set(key);
-    this.reportDayError.set('');
-    this.timeClock.updateDay(item.report.id, date, input.value).subscribe({
-      next: (requirements) => {
-        this.requiredReports.set(requirements);
-        const updatedItem = requirements.employees.find(
-          (candidate) => candidate.employee.id === item.employee.id,
-        );
-        if (updatedItem) this.selectedTimeClockReport.set(updatedItem);
-        this.savingReportDay.set('');
-        this.loadCalculationStatus();
-      },
-      error: (error) => {
-        input.value = currentValue;
-        this.reportDayError.set(
-          error.error?.message ?? 'Modification impossible.',
-        );
-        this.savingReportDay.set('');
-      },
-    });
-  }
-
-  private loadRequiredReports() {
-    this.timeClock.required(this.payrollMonth()).subscribe({
-      next: (requirements) => this.requiredReports.set(requirements),
-      error: () => this.requiredReports.set(null),
-    });
   }
 
   protected launchCalculation() {
@@ -769,17 +616,14 @@ export class App implements OnInit {
         next: ({ cycle, resetEmployees }) => {
           this.cycle.set(cycle);
           this.scanBatch.set(null);
-          this.requiredReports.set(null);
           this.calculationStatus.set(null);
           this.selectedDocument.set(null);
-          this.selectedTimeClockReport.set(null);
           this.selectedCalculation.set(null);
           if (resetEmployees) this.employeeList.set(null);
           this.showReset.set(false);
           this.resetBusy.set(false);
           this.loadEmployees();
           this.loadScanBatch();
-          this.loadRequiredReports();
           this.loadCalculationStatus();
           this.loadCalculationHistory();
           this.loadHolidays();
@@ -917,7 +761,6 @@ export class App implements OnInit {
     this.scans.updateDay(source.rowId, day.date, input.value).subscribe({
       next: (updatedRow) => {
         this.replaceExtractedRow(updatedRow);
-        this.loadRequiredReports();
         this.calculations.status(this.payrollMonth()).subscribe({
           next: (status) => {
             this.calculationStatus.set(status);
@@ -1059,7 +902,6 @@ export class App implements OnInit {
   }
 
   protected archiveTypeLabel(type: ArchivedDocument['type']) {
-    if (type === 'TIME_CLOCK') return 'Rapport pointeuse';
     if (type === 'EMPLOYEE_LIST') return 'Liste employés';
     return 'Feuille horaire';
   }

@@ -1,6 +1,35 @@
 import { CalculationsService } from './calculations.service';
 
-describe('CalculationsService history', () => {
+describe('CalculationsService', () => {
+  it('autorise le calcul avec la liste des employés et les feuilles uniquement', async () => {
+    const prisma = {
+      employee: { count: jest.fn().mockResolvedValue(6) },
+      extractedTimeSheetRow: { count: jest.fn().mockResolvedValue(2) },
+      calculationRun: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
+    const cycles = {
+      getOrCreateActive: jest.fn().mockResolvedValue({
+        id: 'cycle-1',
+        payrollMonth: '2026-07',
+      }),
+    };
+    const service = new CalculationsService(
+      prisma as never,
+      cycles as never,
+      {} as never,
+    );
+
+    await expect(service.status()).resolves.toMatchObject({
+      canLaunch: true,
+      prerequisites: {
+        employeesReady: true,
+        scansReady: true,
+        employeeCount: 6,
+        scannedRowCount: 2,
+      },
+    });
+  });
+
   it('returns archived runs with aggregated totals and review count', async () => {
     const launchedAt = new Date('2026-07-20T08:00:00.000Z');
     const resetAt = new Date('2026-07-21T08:00:00.000Z');
@@ -29,6 +58,7 @@ describe('CalculationsService history', () => {
                 overtimeMiniMinutes: 120,
                 overtimeMaxiMinutes: 0,
                 displacementDays: 1,
+                taskDays: 1,
                 requiresReview: false,
               },
               {
@@ -40,6 +70,7 @@ describe('CalculationsService history', () => {
                 overtimeMiniMinutes: 60,
                 overtimeMaxiMinutes: 480,
                 displacementDays: 2,
+                taskDays: 2,
                 requiresReview: true,
               },
             ],
@@ -70,6 +101,7 @@ describe('CalculationsService history', () => {
           overtimeMiniMinutes: 180,
           overtimeMaxiMinutes: 480,
           displacementDays: 3,
+          taskDays: 3,
         },
       }),
     ]);

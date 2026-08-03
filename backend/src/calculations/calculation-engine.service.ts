@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { parseTimeSheetDayValue } from '../common/time-sheet-day-value';
-import type { ParsedTimeClockDay } from '../time-clock/time-clock.types';
 import {
   CalculationDayDetail,
   EmployeeCalculationInput,
@@ -19,13 +18,9 @@ export class CalculationEngineService {
       current.push(day);
       scannedByDate.set(day.date, current);
     }
-    const timeClockByDate = new Map(
-      input.timeClockDays.map((day) => [day.date, day]),
-    );
     const dates = [...new Set([
       ...(input.cycleDates ?? []),
       ...scannedByDate.keys(),
-      ...timeClockByDate.keys(),
     ])].sort();
 
     const details = dates
@@ -33,7 +28,6 @@ export class CalculationEngineService {
         this.calculateDay(
           date,
           scannedByDate.get(date) ?? [],
-          timeClockByDate.get(date),
           input.holidayDates,
         ),
       );
@@ -51,6 +45,7 @@ export class CalculationEngineService {
           result.overtimeMaxiMinutes + day.overtimeMaxiMinutes,
         displacementDays:
           result.displacementDays + (day.displacement ? 1 : 0),
+        taskDays: result.taskDays + (day.taskDay ? 1 : 0),
       }),
       {
         normalMinutes: 0,
@@ -61,6 +56,7 @@ export class CalculationEngineService {
         overtimeMiniMinutes: 0,
         overtimeMaxiMinutes: 0,
         displacementDays: 0,
+        taskDays: 0,
       },
     );
     totals.normalMinutes = Math.max(
@@ -88,7 +84,6 @@ export class CalculationEngineService {
   private calculateDay(
     date: string,
     scannedDays: EmployeeCalculationInput['scannedDays'],
-    timeClockDay: ParsedTimeClockDay | undefined,
     holidayDates: Set<string>,
   ): CalculationDayDetail {
     const parsedValues = scannedDays.map((day) =>
@@ -106,12 +101,11 @@ export class CalculationEngineService {
     const hasSickLeave = values.includes('MA');
     const hasRecovery = values.includes('RC');
     const displacement = parsedValues.some((value) => value.displacement);
-    const hasTimeClockCode = values.includes('T');
+    const taskDay = values.includes('T');
 
     for (const value of values) {
       const parsedValue = parseTimeSheetDayValue(value);
-      if (value === 'P') workedMinutes += 480;
-      else if (parsedValue.hours !== null) {
+      if (parsedValue.hours !== null) {
         workedMinutes += Math.round(parsedValue.hours * 60);
       }
     }
@@ -120,20 +114,6 @@ export class CalculationEngineService {
         warnings.push(`${date}: récupération et présence simultanées`);
       } else {
         workedMinutes = 480;
-      }
-    }
-
-    if (hasTimeClockCode) {
-      if (!timeClockDay) {
-        warnings.push(`${date}: rapport pointeuse manquant`);
-      } else if (timeClockDay.workedMinutes === null) {
-        warnings.push(`${date}: durée pointeuse à compléter`);
-      } else {
-        workedMinutes += timeClockDay.workedMinutes;
-        if (timeClockDay.dayType === 'ABSENT') absence = true;
-        if (timeClockDay.needsReview) {
-          warnings.push(`${date}: pointage à vérifier`);
-        }
       }
     }
 
@@ -148,10 +128,8 @@ export class CalculationEngineService {
 
     const isHoliday =
       holidayDates.has(date) ||
-      parsedValues.some((value) => value.holiday) ||
-      timeClockDay?.dayType === 'HOLIDAY';
-    const isWeekend =
-      this.isWeekend(date) || timeClockDay?.dayType === 'WEEKEND';
+      parsedValues.some((value) => value.holiday);
+    const isWeekend = this.isWeekend(date);
     const dayType = isHoliday
       ? 'HOLIDAY'
       : isWeekend
@@ -192,6 +170,7 @@ export class CalculationEngineService {
       overtimeMiniMinutes,
       overtimeMaxiMinutes,
       displacement,
+      taskDay,
       requiresReview,
       warnings: [...new Set(warnings)],
       sources: scannedDays.map((day) => ({

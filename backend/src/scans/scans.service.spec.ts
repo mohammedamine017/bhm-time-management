@@ -122,7 +122,6 @@ describe('ScansService', () => {
     expect(persistedRow.days.map((day: { needsReview: boolean }) => day.needsReview))
       .toEqual([false, true, false]);
     expect(persistedRow.requiresReview).toBe(true);
-    expect(persistedRow.hasTimeClockCode).toBe(true);
   });
 
   it('validates an edited day and recalculates the row state', async () => {
@@ -172,6 +171,5 @@ describe('ScansService', () => {
       needsReview: false,
     });
     expect(result.requiresReview).toBe(false);
-    expect(result.hasTimeClockCode).toBe(true);
   });
 });

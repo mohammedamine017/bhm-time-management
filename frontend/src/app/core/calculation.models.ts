@@ -11,6 +11,7 @@ export interface CalculationDayDetail {
   overtimeMiniMinutes: number;
   overtimeMaxiMinutes: number;
   displacement: boolean;
+  taskDay: boolean;
   requiresReview: boolean;
   warnings: string[];
   sources: {
@@ -33,6 +34,7 @@ export interface EmployeeCalculation {
   overtimeMiniMinutes: number;
   overtimeMaxiMinutes: number;
   displacementDays: number;
+  taskDays: number;
   requiresReview: boolean;
   warnings: string[];
   details: CalculationDayDetail[];
@@ -49,11 +51,8 @@ export interface CalculationStatus {
   prerequisites: {
     employeesReady: boolean;
     scansReady: boolean;
-    reportsReady: boolean;
     employeeCount: number;
     scannedRowCount: number;
-    requiredReportCount: number;
-    missingReportCount: number;
   };
   run: {
     id: string;
@@ -86,6 +85,7 @@ export interface CalculationHistoryItem {
     overtimeMiniMinutes: number;
     overtimeMaxiMinutes: number;
     displacementDays: number;
+    taskDays: number;
   };
 }
 

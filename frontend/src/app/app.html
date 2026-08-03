@@ -273,34 +273,6 @@
               </div>
             </article>
 
-            <article class="flow-item">
-              <span class="step-number">3</span>
-              <div>
-                <h3>Rapports requis</h3>
-                @if (requiredReports(); as reports) {
-                  @if (reports.requiredCount === 0) {
-                    <p>Aucun rapport requis : aucune case T détectée.</p>
-                  } @else {
-                    <p>
-                      {{ reports.readyCount }}/{{ reports.requiredCount }}
-                      rapport(s) importé(s)
-                    </p>
-                    <small>
-                      {{
-                        reports.isReady
-                          ? 'Tous les rapports requis sont disponibles'
-                          : reports.missingCount + ' rapport(s) encore manquant(s)'
-                      }}
-                    </small>
-                  }
-                } @else {
-                  <p>Vérification des cases T...</p>
-                }
-              </div>
-              <button type="button" (click)="setView('required-reports')">
-                {{ requiredReports()?.missingCount ? 'Compléter' : 'Consulter' }}
-              </button>
-            </article>
           </section>
 
           @if (calculationStatus()?.run; as run) {
@@ -370,6 +342,7 @@
                       <th>Supp. 50 %</th>
                       <th>Supp. 100 %</th>
                       <th>Déplacement</th>
+                      <th>Travail à la tâche</th>
                       <th>Vérification</th>
                     </tr>
                   </thead>
@@ -391,10 +364,11 @@
                         <td>{{ result.paidLeaveDays }}</td>
                         <td>{{ result.sickLeaveDays }}</td>
                         <td>{{ result.stcDays }}</td>
-                        <td>{{ minutesLabel(result.overtimeMiniMinutes) }}</td>
-                        <td>{{ minutesLabel(result.overtimeMaxiMinutes) }}</td>
-                        <td>{{ result.displacementDays }}</td>
-                        <td>
+                      <td>{{ minutesLabel(result.overtimeMiniMinutes) }}</td>
+                      <td>{{ minutesLabel(result.overtimeMaxiMinutes) }}</td>
+                      <td>{{ result.displacementDays }}</td>
+                      <td>{{ result.taskDays }}</td>
+                      <td>
                           <span
                             class="badge"
                             [class.success]="!result.requiresReview"
@@ -707,170 +681,6 @@
           }
         }
 
-        @case ('required-reports') {
-          <section class="page-panel">
-            <div>
-              <p class="eyebrow">Cases T</p>
-              <h2>Rapports pointeuse requis</h2>
-              <p>Un rapport mensuel suffit par employé, quel que soit le nombre de cases T.</p>
-            </div>
-            @if (requiredReports(); as reports) {
-              <div class="report-progress" [class.complete]="reports.isReady">
-                <strong>{{ reports.readyCount }}/{{ reports.requiredCount }}</strong>
-                <span>{{ reports.isReady ? 'Prêt' : 'Importé(s)' }}</span>
-              </div>
-            }
-          </section>
-
-          @if (reportError()) {
-            <p class="alert">{{ reportError() }}</p>
-          }
-
-          @if (requiredReports(); as reports) {
-            @if (reports.employees.length) {
-              <section class="list-toolbar" aria-label="Recherche des rapports requis">
-                <label class="search-control">
-                  <span>Rechercher</span>
-                  <input
-                    type="search"
-                    placeholder="Nom ou matricule"
-                    [ngModel]="reportSearch()"
-                    (ngModelChange)="reportSearch.set($event)"
-                  />
-                </label>
-                <label class="filter-control">
-                  <span>Disponibilité</span>
-                  <select
-                    [ngModel]="reportFilter()"
-                    (ngModelChange)="reportFilter.set($event)"
-                  >
-                    <option value="ALL">Tous</option>
-                    <option value="MISSING">Manquants</option>
-                    <option value="READY">Importés</option>
-                  </select>
-                </label>
-                <span class="filtered-count">
-                  {{ filteredReports(reports).length }} résultat(s)
-                </span>
-              </section>
-
-              <section class="operational-table-wrap">
-                <table class="operational-table report-table">
-                  <thead>
-                    <tr>
-                      <th>Employé</th>
-                      <th>Dates avec T</th>
-                      <th>Rapport</th>
-                      <th>État</th>
-                      <th class="actions-column">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (item of filteredReports(reports); track item.employee.id) {
-                      <tr [class.ready-row]="item.report">
-                        <td>
-                          <div class="employee-identity">
-                            <span class="employee-avatar">
-                              {{ item.employee.firstName.charAt(0) }}{{ item.employee.lastName.charAt(0) }}
-                            </span>
-                            <div>
-                              <strong>
-                                {{ item.employee.firstName }} {{ item.employee.lastName }}
-                              </strong>
-                              <small>{{ item.employee.matricule }}</small>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <div class="required-days inline-days">
-                            @for (date of item.requiredDates.slice(0, 4); track date) {
-                              <small [class.unresolved]="item.unresolvedDates.includes(date)">
-                                {{ dayLabel(date) }}
-                              </small>
-                            }
-                            @if (item.requiredDates.length > 4) {
-                              <small class="more-days">
-                                +{{ item.requiredDates.length - 4 }}
-                              </small>
-                            }
-                          </div>
-                        </td>
-                        <td>
-                          @if (item.report) {
-                            <span class="report-file-name">{{ item.report.fileName }}</span>
-                          } @else {
-                            <span class="cell-helper">Aucun fichier</span>
-                          }
-                        </td>
-                        <td>
-                          @if (item.report) {
-                            <span class="sheet-status success">Importé</span>
-                            @if (item.unresolvedDates.length) {
-                              <small class="status-detail warning-text">
-                                {{ item.unresolvedDates.length }} date(s) à vérifier
-                              </small>
-                            }
-                          } @else {
-                            <span class="sheet-status control">Manquant</span>
-                          }
-                        </td>
-                        <td>
-                          <div class="row-actions">
-                            @if (item.report) {
-                              <button
-                                class="compact-action"
-                                type="button"
-                                (click)="openTimeClockReport(item)"
-                              >
-                                Voir
-                              </button>
-                            }
-                            <label
-                              class="compact-action"
-                              [class.primary-action]="!item.report"
-                              [class.disabled]="reportImportBusy() === item.employee.id"
-                            >
-                              {{
-                                reportImportBusy() === item.employee.id
-                                  ? 'Import...'
-                                  : item.report
-                                    ? 'Remplacer'
-                                    : 'Importer'
-                              }}
-                              <input
-                                type="file"
-                                accept=".xls,.xlsx"
-                                [disabled]="reportImportBusy() === item.employee.id"
-                                (change)="selectTimeClockFile(item.employee.id, $event)"
-                              />
-                            </label>
-                          </div>
-                        </td>
-                      </tr>
-                    } @empty {
-                      <tr>
-                        <td colspan="5" class="list-empty">
-                          Aucun rapport ne correspond à la recherche.
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </section>
-            } @else {
-              <section class="empty-result compact">
-                <h2>Aucun rapport requis</h2>
-                <p>
-                  Les employés concernés apparaîtront ici après l’extraction
-                  d’une feuille contenant au moins une case T.
-                </p>
-              </section>
-            }
-          } @else {
-            <section class="status-panel">Chargement des besoins...</section>
-          }
-        }
-
         @case ('calculation-history') {
           @if (historyError()) {
             <p class="alert">{{ historyError() }}</p>
@@ -970,6 +780,7 @@
                       <th>Supp. 50 %</th>
                       <th>Supp. 100 %</th>
                       <th>Déplacement</th>
+                      <th>Travail à la tâche</th>
                       <th>Vérification</th>
                     </tr>
                   </thead>
@@ -991,10 +802,11 @@
                         <td>{{ result.paidLeaveDays }}</td>
                         <td>{{ result.sickLeaveDays }}</td>
                         <td>{{ result.stcDays }}</td>
-                        <td>{{ minutesLabel(result.overtimeMiniMinutes) }}</td>
-                        <td>{{ minutesLabel(result.overtimeMaxiMinutes) }}</td>
-                        <td>{{ result.displacementDays }}</td>
-                        <td>
+                      <td>{{ minutesLabel(result.overtimeMiniMinutes) }}</td>
+                      <td>{{ minutesLabel(result.overtimeMaxiMinutes) }}</td>
+                      <td>{{ result.displacementDays }}</td>
+                      <td>{{ result.taskDays }}</td>
+                      <td>
                           <span
                             class="badge"
                             [class.success]="!result.requiresReview"
@@ -1203,7 +1015,6 @@
                 >
                   <option value="ALL">Tous</option>
                   <option value="TIME_SHEET">Feuilles horaires</option>
-                  <option value="TIME_CLOCK">Rapports pointeuse</option>
                   <option value="EMPLOYEE_LIST">Listes employés</option>
                 </select>
               </label>
@@ -1301,8 +1112,8 @@
           <h2 id="reset-title">Réinitialiser le cycle actif ?</h2>
           <p>
             Le calcul actuel sera archivé avec tout son détail. Les feuilles
-            horaires, extractions et rapports pointeuse actifs seront remis à
-            zéro. Les fichiers archivés et les jours fériés seront conservés.
+            horaires et extractions actives seront remises à zéro. Les fichiers
+            archivés et les jours fériés seront conservés.
           </p>
         </div>
 
@@ -1465,108 +1276,6 @@
     </div>
   }
 
-  @if (selectedTimeClockReport(); as item) {
-    <div class="modal-backdrop" (click)="closeTimeClockReport()">
-      <section
-        class="report-modal"
-        role="dialog"
-        aria-modal="true"
-        (click)="$event.stopPropagation()"
-      >
-        <header>
-          <div>
-            <p class="eyebrow">Rapport pointeuse</p>
-            <h2>{{ item.employee.firstName }} {{ item.employee.lastName }}</h2>
-            <p>{{ item.report?.fileName }}</p>
-          </div>
-          <button
-            class="icon-button"
-            type="button"
-            title="Fermer"
-            (click)="closeTimeClockReport()"
-          >
-            ×
-          </button>
-        </header>
-        <div class="report-edit-note">
-          <span>Modifiez une durée au format HH:MM puis quittez la case pour enregistrer.</span>
-          <span>{{ item.requiredDates.length }} date(s) avec T</span>
-        </div>
-        @if (reportDayError()) {
-          <p class="alert report-day-alert">{{ reportDayError() }}</p>
-        }
-        <div class="time-clock-table-wrap">
-          <table class="time-clock-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Type de journée</th>
-                <th>Pointages trouvés</th>
-                <th>Durée</th>
-                <th>Statut de la durée</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (date of item.requiredDates; track date) {
-                @let day = reportDay(item, date);
-                <tr [class.warning]="day?.workedMinutes === null || !day">
-                  <td>
-                    <strong>{{ dayLabel(date) }}</strong>
-                    <small>Case T</small>
-                  </td>
-                  <td>
-                    <span
-                      class="day-type"
-                      [class.worked]="day?.dayType === 'WORKED'"
-                      [class.absent]="day?.dayType === 'ABSENT'"
-                      [class.weekend]="day?.dayType === 'WEEKEND'"
-                      [class.holiday]="day?.dayType === 'HOLIDAY'"
-                    >
-                      {{ timeClockDayTypeLabel(day) }}
-                    </span>
-                    @if (day?.sourceState) {
-                      <small class="source-state">{{ day?.sourceState }}</small>
-                    }
-                  </td>
-                  <td>
-                    @if (day?.punches?.length) {
-                      <span class="punches">{{ day?.punches?.join(' · ') }}</span>
-                    } @else {
-                      <span class="muted-value">Aucun pointage</span>
-                    }
-                  </td>
-                  <td>
-                    <input
-                      class="duration-input"
-                      type="text"
-                      inputmode="decimal"
-                      placeholder="HH:MM"
-                      maxlength="6"
-                      [value]="durationInput(day)"
-                      [disabled]="savingReportDay() === item.report?.id + ':' + date"
-                      (keydown.enter)="$any($event.target).blur()"
-                      (change)="saveTimeClockDay(item, date, $any($event.target))"
-                    />
-                  </td>
-                  <td>
-                    <span
-                      class="badge"
-                      [class.success]="day?.workedMinutes !== null && !!day"
-                    >
-                      {{
-                        durationStatusLabel(day)
-                      }}
-                    </span>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
-  }
-
   @if (selectedCalculation(); as result) {
     <div class="modal-backdrop" (click)="closeCalculation()">
       <section
@@ -1618,6 +1327,7 @@
           <div><span>Supp. 50 %</span><strong>{{ minutesLabel(result.overtimeMiniMinutes) }}</strong></div>
           <div><span>Supp. 100 %</span><strong>{{ minutesLabel(result.overtimeMaxiMinutes) }}</strong></div>
           <div><span>Déplacements</span><strong>{{ result.displacementDays }}</strong></div>
+          <div><span>Travail à la tâche</span><strong>{{ result.taskDays }} j</strong></div>
           <div>
             <span>Ajustement 22 jours</span>
             <strong>

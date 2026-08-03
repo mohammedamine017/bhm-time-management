@@ -28,7 +28,6 @@ describe('CalculationEngineService', () => {
         scanned('2026-06-25', '0'),
         scanned('2026-06-26', '8'),
       ],
-      timeClockDays: [],
       holidayDates: new Set(),
       adjustmentMinutes: 0,
     });
@@ -50,7 +49,6 @@ describe('CalculationEngineService', () => {
         scanned('2026-06-26', '8D'),
         scanned('2026-07-05', '8D'),
       ],
-      timeClockDays: [],
       holidayDates: new Set(['2026-07-05']),
       adjustmentMinutes: 0,
     });
@@ -68,7 +66,6 @@ describe('CalculationEngineService', () => {
     const result = engine.calculate({
       employeeId: 'employee-1',
       scannedDays: [scanned('2026-06-22', 'D')],
-      timeClockDays: [],
       holidayDates: new Set(),
       adjustmentMinutes: 0,
     });
@@ -78,48 +75,42 @@ describe('CalculationEngineService', () => {
     expect(result.warnings).toContain('2026-06-22: valeur non reconnue');
   });
 
-  it('classe T selon le type de jour du rapport pointeuse', () => {
+  it('compte T comme une journée de travail à la tâche sans ajouter d’heures', () => {
     const result = engine.calculate({
       employeeId: 'employee-1',
       scannedDays: [
-        scanned('2026-06-27', 'T'),
         scanned('2026-07-07', 'T'),
-      ],
-      timeClockDays: [
-        {
-          date: '2026-06-27',
-          sourceState: 'week end',
-          dayType: 'WEEKEND',
-          punches: ['13:24:00'],
-          workedMinutes: 480,
-          durationSource: 'MANUAL',
-          needsReview: false,
-          warnings: [],
-        },
-        {
-          date: '2026-07-07',
-          sourceState: null,
-          dayType: 'WORKED',
-          punches: ['08:00:00', '16:00:00'],
-          workedMinutes: 480,
-          durationSource: 'CALCULATED',
-          needsReview: false,
-          warnings: [],
-        },
+        scanned('2026-07-07', 'T'),
+        scanned('2026-07-08', 'T'),
       ],
       holidayDates: new Set(),
       adjustmentMinutes: 0,
     });
 
-    expect(result.normalMinutes).toBe(480);
-    expect(result.overtimeMiniMinutes).toBe(480);
+    expect(result.normalMinutes).toBe(0);
+    expect(result.overtimeMiniMinutes).toBe(0);
+    expect(result.overtimeMaxiMinutes).toBe(0);
+    expect(result.taskDays).toBe(2);
+    expect(result.requiresReview).toBe(false);
+  });
+
+  it('ne calcule aucune heure pour le code P supprimé', () => {
+    const result = engine.calculate({
+      employeeId: 'employee-1',
+      scannedDays: [scanned('2026-06-22', 'P')],
+      holidayDates: new Set(),
+      adjustmentMinutes: 0,
+    });
+
+    expect(result.normalMinutes).toBe(0);
+    expect(result.requiresReview).toBe(true);
+    expect(result.warnings).toContain('2026-06-22: valeur non reconnue');
   });
 
   it('classe un travail ferie en supplement maxi et conserve la verification', () => {
     const result = engine.calculate({
       employeeId: 'employee-1',
       scannedDays: [scanned('2026-07-05', '8', true)],
-      timeClockDays: [],
       holidayDates: new Set(['2026-07-05']),
       adjustmentMinutes: 480,
     });
@@ -133,7 +124,6 @@ describe('CalculationEngineService', () => {
     const result = engine.calculate({
       employeeId: 'employee-1',
       scannedDays: [scanned('2026-06-26', '8')],
-      timeClockDays: [],
       holidayDates: new Set(),
       adjustmentMinutes: 0,
     });
@@ -147,7 +137,6 @@ describe('CalculationEngineService', () => {
     const result = engine.calculate({
       employeeId: 'employee-1',
       scannedDays: [scanned('2026-06-27', '8')],
-      timeClockDays: [],
       holidayDates: new Set(),
       adjustmentMinutes: 0,
     });
@@ -163,7 +152,6 @@ describe('CalculationEngineService', () => {
       const result = engine.calculate({
         employeeId: 'employee-1',
         scannedDays: [scanned('2026-07-06', value)],
-        timeClockDays: [],
         holidayDates: new Set(),
         adjustmentMinutes: 0,
       });
@@ -181,7 +169,6 @@ describe('CalculationEngineService', () => {
       const result = engine.calculate({
         employeeId: 'employee-1',
         scannedDays: [scanned('2026-07-06', value)],
-        timeClockDays: [],
         holidayDates: new Set(),
         adjustmentMinutes: 0,
       });
@@ -199,7 +186,6 @@ describe('CalculationEngineService', () => {
         scanned('2026-06-22', 'X'),
         scanned('2026-06-23', 'X'),
       ],
-      timeClockDays: [],
       holidayDates: new Set(),
       adjustmentMinutes: 0,
     });
@@ -217,7 +203,6 @@ describe('CalculationEngineService', () => {
         scanned('2026-06-22', 'X'),
         scanned('2026-06-22', '8'),
       ],
-      timeClockDays: [],
       holidayDates: new Set(),
       adjustmentMinutes: 0,
     });
@@ -238,7 +223,6 @@ describe('CalculationEngineService', () => {
         scanned('2026-06-25', 'CP'),
         scanned('2026-06-28', 'MA'),
       ],
-      timeClockDays: [],
       holidayDates: new Set(),
       adjustmentMinutes: 0,
     });

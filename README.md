@@ -17,17 +17,16 @@ L'ancien projet reste indépendant et n'est pas utilisé par cette version.
 1. Importer une liste active d'employés.
 2. Scanner les feuilles depuis le QR permanent.
 3. Recevoir le JSON structuré extrait par Claude.
-4. Importer un seul rapport pointeuse pour chaque employé ayant au moins un `T`.
-5. Lancer le calcul lorsque tous les prérequis sont prêts.
-6. Vérifier, corriger et exporter les résultats.
-7. Réinitialiser les données opérationnelles tout en conservant les documents archivés.
+4. Lancer le calcul lorsque les employés et les feuilles sont prêts.
+5. Vérifier, corriger et exporter les résultats.
+6. Réinitialiser les données opérationnelles tout en conservant les documents archivés.
 
 ## Règles fondatrices
 
 - Un seul cycle est actif.
 - Un mois de paie couvre la période du 20 du mois précédent au 19 du mois courant.
-- Un employé n'a besoin que d'un rapport pointeuse par cycle, même avec plusieurs `T`.
-- Le rapport est importé depuis la ligne de l'employé concerné : aucun rapprochement n'est deviné.
+- Le code `T` représente une journée de travail à la tâche, sans ajout d'heures.
+- Une date avec `T` est comptée une seule fois par employé, même si elle apparaît sur plusieurs feuilles.
 - Aucun écran de connexion dans la première version.
 
 ## Développement local

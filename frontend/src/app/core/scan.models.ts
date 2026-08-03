@@ -10,7 +10,6 @@ export interface ExtractedRow {
   employeeId?: string | null;
   extractedFullName: string;
   matchedFullName?: string | null;
-  hasTimeClockCode: boolean;
   requiresReview: boolean;
   days: ExtractedDay[];
 }

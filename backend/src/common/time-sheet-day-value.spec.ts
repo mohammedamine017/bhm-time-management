@@ -67,4 +67,8 @@ describe('parseTimeSheetDayValue', () => {
   it('rejects D alone', () => {
     expect(parseTimeSheetDayValue('D').supported).toBe(false);
   });
+
+  it('rejects the removed P code', () => {
+    expect(parseTimeSheetDayValue('P').supported).toBe(false);
+  });
 });

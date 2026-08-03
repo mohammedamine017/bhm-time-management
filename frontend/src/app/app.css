@@ -425,15 +425,6 @@ p {
   font-size: 11px;
 }
 
-.report-file-name {
-  display: block;
-  max-width: 230px;
-  overflow: hidden;
-  color: var(--muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .status-detail {
   display: block;
   margin-top: 4px;
@@ -483,13 +474,6 @@ p {
 
 .compact-action input {
   display: none;
-}
-
-.inline-days {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px;
 }
 
 .time-sheet-summary {
@@ -882,39 +866,6 @@ th {
   color: var(--green);
 }
 
-.required-report-list {
-  display: grid;
-  gap: 0;
-  margin-top: 14px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: white;
-}
-
-.required-report-list > article {
-  display: grid;
-  grid-template-columns: 36px minmax(150px, 1fr) minmax(150px, 1.1fr) minmax(150px, .9fr) auto;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid var(--line);
-  background: white;
-  box-shadow: inset 3px 0 #aab6c5;
-  padding: 9px 11px;
-}
-
-.required-report-list > article:last-of-type {
-  border-bottom: 0;
-}
-
-.required-report-list > article:hover {
-  background: #f8fbfe;
-}
-
-.required-report-list > article.ready {
-  box-shadow: inset 3px 0 var(--green);
-}
-
 .employee-avatar {
   display: grid;
   width: 34px;
@@ -926,100 +877,10 @@ th {
   font-weight: 900;
 }
 
-.report-employee,
-.report-state {
-  display: grid;
-  justify-items: start;
-  gap: 4px;
-  min-width: 0;
-}
-
-.report-employee span,
-.report-state small,
-.required-days > span {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.report-state small {
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.required-days {
-  display: grid;
-  gap: 6px;
-}
-
-.required-days > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.required-days small {
-  border-radius: 5px;
-  background: var(--blue-soft);
-  color: var(--blue);
-  padding: 3px 5px;
-  font-weight: 800;
-}
-
-.required-days small.more-days {
-  background: #edf1f5;
-  color: var(--muted);
-}
-
-.required-days small.unresolved {
-  background: #fff1dd;
-  color: #9a5a00;
-}
-
-.report-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 7px;
-}
-
-.report-progress {
-  display: grid;
-  justify-items: center;
-  min-width: 74px;
-  border-radius: 7px;
-  background: #f1f4f8;
-  padding: 8px 12px;
-}
-
-.report-progress.complete {
-  background: #e7f5ef;
-  color: var(--green);
-}
-
-.report-progress strong {
-  font-size: 20px;
-}
-
-.report-progress span,
 .warning-text {
   color: #9a5a00 !important;
   font-size: 11px;
   font-weight: 800;
-}
-
-.report-modal {
-  display: flex;
-  width: min(calc(100vw - 24px), 1680px);
-  height: min(calc(100vh - 24px), 980px);
-  max-height: none;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid #dbe4ec;
-  border-radius: 8px;
-  background: white;
-  box-shadow: 0 24px 70px rgb(15 31 50 / 18%);
 }
 
 .calculation-modal {
@@ -1337,124 +1198,6 @@ th {
 
 .holiday-empty {
   margin-top: 16px;
-}
-
-.report-modal > header {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  border-bottom: 1px solid var(--line);
-  background: white;
-  padding: 13px 16px;
-}
-
-.report-edit-note {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid var(--line);
-  background: #f8fafc;
-  color: var(--muted);
-  padding: 7px 16px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.report-day-alert {
-  margin: 12px 18px 0;
-}
-
-.time-clock-table-wrap {
-  min-height: 0;
-  max-height: none;
-  flex: 1;
-  overflow: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-}
-
-.time-clock-table-wrap th,
-.time-clock-table-wrap td {
-  padding: 7px 9px;
-  font-size: 12px;
-}
-
-.time-clock-table td:first-child {
-  display: grid;
-  gap: 2px;
-}
-
-.time-clock-table td:first-child small,
-.muted-value {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.time-clock-table tr.warning {
-  background: #fffaf2;
-}
-
-.punches {
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-
-.day-type {
-  display: inline-flex;
-  border-radius: 5px;
-  background: #edf1f5;
-  color: var(--muted);
-  padding: 4px 7px;
-  font-size: 11px;
-  font-weight: 850;
-}
-
-.day-type.worked {
-  background: #e7f5ef;
-  color: var(--green);
-}
-
-.day-type.absent {
-  background: #fff0f0;
-  color: #a42a2a;
-}
-
-.day-type.weekend {
-  background: #eef2f7;
-  color: #52647b;
-}
-
-.day-type.holiday {
-  background: #fff1dd;
-  color: #9a5a00;
-}
-
-.source-state {
-  display: block;
-  margin-top: 3px;
-  color: var(--muted);
-  font-size: 10px;
-}
-
-.duration-input {
-  width: 72px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 6px;
-  color: var(--ink);
-  font-size: 12px;
-  text-align: center;
-  font-weight: 800;
-}
-
-.duration-input:focus {
-  border-color: var(--blue);
-  box-shadow: 0 0 0 3px rgb(20 86 160 / 12%);
-  outline: none;
 }
 
 .alert {
@@ -2098,7 +1841,6 @@ th {
     font-size: 14px;
   }
 
-  .report-modal > header,
   .calculation-modal > header,
   .extraction-header {
     padding: 8px 11px;
@@ -2271,7 +2013,6 @@ th {
     padding: 8px;
   }
 
-  .report-modal,
   .calculation-modal,
   .extraction-modal {
     width: 100%;
@@ -2285,7 +2026,6 @@ th {
     overflow: auto;
   }
 
-  .report-modal > header,
   .calculation-modal > header,
   .extraction-header {
     flex: 0 0 auto;
@@ -2305,10 +2045,6 @@ th {
     flex-direction: column;
   }
 
-  .required-report-list > article {
-    grid-template-columns: 44px 1fr;
-  }
-
   .calculation-summary,
   .history-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2316,16 +2052,6 @@ th {
 
   .holiday-panel form {
     grid-template-columns: 1fr;
-  }
-
-  .required-days,
-  .report-state,
-  .report-actions {
-    grid-column: 1 / -1;
-  }
-
-  .report-actions {
-    justify-content: flex-start;
   }
 
   .document-actions {
@@ -2432,15 +2158,13 @@ th {
     padding: 10px 12px;
   }
 
-  .report-modal > header,
   .calculation-modal > header,
   .extraction-header {
     gap: 10px;
     padding: 10px 12px;
   }
 
-  .review-legend,
-  .report-edit-note {
+  .review-legend {
     padding-inline: 12px;
   }
 

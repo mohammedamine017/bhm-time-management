@@ -7,11 +7,6 @@ import { CycleStatus, ImportStatus, Prisma } from '@prisma/client';
 import ExcelJS from 'exceljs';
 import { CyclesService } from '../cycles/cycles.service';
 import { PrismaService } from '../prisma/prisma.service';
-import type {
-  ParsedTimeClockDay,
-  TimeClockDayType,
-  TimeClockDurationSource,
-} from '../time-clock/time-clock.types';
 import { CalculationEngineService } from './calculation-engine.service';
 import type { ScannedCalculationDay } from './calculation.types';
 
@@ -29,25 +24,13 @@ export class CalculationsService {
 
   async status(month?: string) {
     const cycle = await this.cycles.getOrCreateActive(month);
-    const [employeeCount, scannedRows, requiredRows, reports, run] =
+    const [employeeCount, scannedRows, run] =
       await Promise.all([
         this.prisma.employee.count({
           where: { listImport: { status: ImportStatus.ACTIVE } },
         }),
         this.prisma.extractedTimeSheetRow.count({
           where: { document: { batch: { cycleId: cycle.id } } },
-        }),
-        this.prisma.extractedTimeSheetRow.findMany({
-          where: {
-            document: { batch: { cycleId: cycle.id } },
-            employeeId: { not: null },
-            hasTimeClockCode: true,
-          },
-          select: { employeeId: true },
-        }),
-        this.prisma.timeClockReport.findMany({
-          where: { cycleId: cycle.id },
-          select: { employeeId: true },
         }),
         this.prisma.calculationRun.findUnique({
           where: { cycleId: cycle.id },
@@ -60,21 +43,11 @@ export class CalculationsService {
         }),
       ]);
 
-    const requiredEmployeeIds = new Set(
-      requiredRows.map((row) => row.employeeId).filter(Boolean),
-    );
-    const reportEmployeeIds = new Set(reports.map((report) => report.employeeId));
-    const missingReportCount = [...requiredEmployeeIds].filter(
-      (employeeId) => !reportEmployeeIds.has(employeeId as string),
-    ).length;
     const prerequisites = {
       employeesReady: employeeCount > 0,
       scansReady: scannedRows > 0,
-      reportsReady: missingReportCount === 0,
       employeeCount,
       scannedRowCount: scannedRows,
-      requiredReportCount: requiredEmployeeIds.size,
-      missingReportCount,
     };
 
     return {
@@ -82,8 +55,7 @@ export class CalculationsService {
       prerequisites,
       canLaunch:
         prerequisites.employeesReady &&
-        prerequisites.scansReady &&
-        prerequisites.reportsReady,
+        prerequisites.scansReady,
       run,
     };
   }
@@ -92,7 +64,7 @@ export class CalculationsService {
     const currentStatus = await this.status(month);
     if (!currentStatus.canLaunch) {
       throw new BadRequestException(
-        'La liste des employés, les feuilles et tous les rapports requis sont nécessaires.',
+        'La liste des employés et les feuilles horaires sont nécessaires.',
       );
     }
     await this.calculateCycle(currentStatus.cycle.id);
@@ -126,6 +98,7 @@ export class CalculationsService {
             overtimeMiniMinutes: true,
             overtimeMaxiMinutes: true,
             displacementDays: true,
+            taskDays: true,
             requiresReview: true,
           },
         },
@@ -155,6 +128,7 @@ export class CalculationsService {
             totals.overtimeMaxiMinutes + result.overtimeMaxiMinutes,
           displacementDays:
             totals.displacementDays + result.displacementDays,
+          taskDays: totals.taskDays + result.taskDays,
         }),
         {
           normalMinutes: 0,
@@ -165,6 +139,7 @@ export class CalculationsService {
           overtimeMiniMinutes: 0,
           overtimeMaxiMinutes: 0,
           displacementDays: 0,
+          taskDays: 0,
         },
       ),
     }));
@@ -223,6 +198,7 @@ export class CalculationsService {
       { header: 'Supp. mini', key: 'mini', width: 15 },
       { header: 'Supp. maxi', key: 'maxi', width: 15 },
       { header: 'Déplacements', key: 'displacement', width: 15 },
+      { header: 'Travail à la tâche (jours)', key: 'task', width: 24 },
       { header: 'État', key: 'state', width: 15 },
     ];
     for (const result of results) {
@@ -238,6 +214,7 @@ export class CalculationsService {
         mini: this.decimalHours(result.overtimeMiniMinutes),
         maxi: this.decimalHours(result.overtimeMaxiMinutes),
         displacement: result.displacementDays,
+        task: result.taskDays,
         state: result.requiresReview ? 'À vérifier' : 'Correct',
       });
     }
@@ -254,6 +231,7 @@ export class CalculationsService {
       { header: 'CP', key: 'paidLeave', width: 10 },
       { header: 'MA', key: 'sickLeave', width: 10 },
       { header: 'STC', key: 'stc', width: 10 },
+      { header: 'Travail à la tâche', key: 'task', width: 19 },
       { header: 'À vérifier', key: 'review', width: 14 },
     ];
     for (const result of results) {
@@ -269,6 +247,7 @@ export class CalculationsService {
           paidLeave: day.paidLeaveDay ? 'Oui' : '',
           sickLeave: day.sickLeaveDay ? 'Oui' : '',
           stc: day.stcDay ? 'Oui' : '',
+          task: day.taskDay ? 'Oui' : '',
           review: day.requiresReview ? 'Oui' : 'Non',
         });
       }
@@ -340,7 +319,7 @@ export class CalculationsService {
     const cycle = await this.prisma.payrollCycle.findUniqueOrThrow({
       where: { id: cycleId },
     });
-    const [employees, rows, reports, holidays] = await Promise.all([
+    const [employees, rows, holidays] = await Promise.all([
       this.prisma.employee.findMany({
         where: { listImport: { status: ImportStatus.ACTIVE } },
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
@@ -353,7 +332,6 @@ export class CalculationsService {
         include: { document: true },
         orderBy: { document: { uploadedAt: 'desc' } },
       }),
-      this.prisma.timeClockReport.findMany({ where: { cycleId } }),
       this.prisma.holiday.findMany({
         where: { date: { gte: cycle.startDate, lte: cycle.endDate } },
       }),
@@ -391,12 +369,6 @@ export class CalculationsService {
       holidayDates,
     );
     const adjustmentMinutes = (22 - openDays) * 480;
-    const reportByEmployee = new Map(
-      reports.map((report) => [
-        report.employeeId,
-        this.normalizeReportDays(report.days),
-      ]),
-    );
     const cycleDates = this.listDates(cycle.startDate, cycle.endDate);
     const extractedEmployees = employees.filter((employee) =>
       scannedByEmployee.has(employee.id),
@@ -405,7 +377,6 @@ export class CalculationsService {
       this.engine.calculate({
         employeeId: employee.id,
         scannedDays: scannedByEmployee.get(employee.id) ?? [],
-        timeClockDays: reportByEmployee.get(employee.id) ?? [],
         holidayDates,
         adjustmentMinutes,
         cycleDates,
@@ -435,6 +406,7 @@ export class CalculationsService {
           overtimeMiniMinutes: result.overtimeMiniMinutes,
           overtimeMaxiMinutes: result.overtimeMaxiMinutes,
           displacementDays: result.displacementDays,
+          taskDays: result.taskDays,
           requiresReview: result.requiresReview,
           warnings: result.warnings as Prisma.InputJsonValue,
           details: result.details as unknown as Prisma.InputJsonValue,
@@ -452,56 +424,6 @@ export class CalculationsService {
     }[];
   }
 
-  private normalizeReportDays(value: unknown): ParsedTimeClockDay[] {
-    if (!Array.isArray(value)) return [];
-    return (value as Record<string, unknown>[]).map((day) => {
-      const date = String(day['date'] ?? '');
-      const punches = Array.isArray(day['punches'])
-        ? day['punches'].map(String)
-        : [];
-      const sourceState =
-        String(day['sourceState'] ?? day['state'] ?? '').trim() || null;
-      const dayType =
-        (day['dayType'] as TimeClockDayType | undefined) ??
-        this.inferDayType(date, sourceState, punches);
-      const storedMinutes =
-        typeof day['workedMinutes'] === 'number'
-          ? day['workedMinutes']
-          : null;
-      const workedMinutes =
-        storedMinutes ??
-        (dayType === 'ABSENT' ||
-        dayType === 'WEEKEND' ||
-        dayType === 'HOLIDAY'
-          ? 0
-          : null);
-      const durationSource =
-        (day['durationSource'] as TimeClockDurationSource | undefined) ??
-        (workedMinutes === null
-          ? 'MISSING'
-          : punches.length >= 2
-            ? 'CALCULATED'
-            : dayType === 'UNKNOWN'
-              ? 'MANUAL'
-              : 'STATE');
-      const warnings = Array.isArray(day['warnings'])
-        ? day['warnings'].map(String)
-        : [];
-      return {
-        date,
-        sourceState,
-        dayType,
-        punches,
-        workedMinutes,
-        durationSource,
-        needsReview:
-          dayType === 'UNKNOWN' ||
-          (Boolean(day['needsReview']) && warnings.length > 0),
-        warnings,
-      };
-    });
-  }
-
   private calculationDetails(value: unknown) {
     if (!Array.isArray(value)) return [];
     return value as {
@@ -513,6 +435,7 @@ export class CalculationsService {
       stcDay: boolean;
       paidLeaveDay: boolean;
       sickLeaveDay: boolean;
+      taskDay: boolean;
       requiresReview: boolean;
     }[];
   }
@@ -525,23 +448,6 @@ export class CalculationsService {
     if (type === 'HOLIDAY') return 'Férié';
     if (type === 'WEEKEND') return 'Week-end';
     return 'Ouvrable';
-  }
-
-  private inferDayType(
-    date: string,
-    sourceState: string | null,
-    punches: string[],
-  ): TimeClockDayType {
-    const state = (sourceState ?? '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
-    if (state.includes('absent')) return 'ABSENT';
-    if (state.includes('ferie')) return 'HOLIDAY';
-    if (/week\s*end|weekend|repos/.test(state) || this.isWeekend(date)) {
-      return 'WEEKEND';
-    }
-    return punches.length >= 2 ? 'WORKED' : 'UNKNOWN';
   }
 
   private countOpenDays(start: Date, end: Date, holidays: Set<string>) {

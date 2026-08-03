@@ -25,17 +25,16 @@
 - Claude ignore le titre Atelier, lit toute la zone d'identite et associe les noms a la liste active.
 - Claude retourne un JSON strict directement exploitable.
 
-## Phase 3 - Rapports pointeuse requis
+## Phase 3 - Codes et rubriques metier
 
-- Detecter les employes possedant au moins une case T.
-- Afficher chaque employe concerne une seule fois, meme avec plusieurs T.
-- Importer au maximum un rapport pointeuse par employe et par cycle.
-- Le RH lance l'import depuis la ligne de l'employe: le lien est explicite et le systeme ne devine jamais le proprietaire.
-- Extraire les pointages par paires entree-sortie pour les dates marquees T.
+- Interpreter les codes extraits sans document complementaire.
+- Traiter T comme une journee de travail a la tache, sans ajouter d'heures.
+- Compter une date avec T une seule fois par employe, meme si elle apparait sur plusieurs feuilles.
+- Conserver les codes metier dans une structure extensible.
 
 ## Phase 4 - Calcul et verification
 
-- Lancer l'operation lorsque la liste, les feuilles et les rapports requis sont disponibles.
+- Lancer l'operation lorsque la liste des employes et les feuilles horaires sont disponibles.
 - Interpreter les codes et calculer les rubriques du cycle.
 - Afficher la grille complete et les totaux par employe.
 - Permettre la correction case par case avec recalcul automatique.

@@ -16,7 +16,7 @@ enum WorkCodeBehavior {
   FIXED_HOURS
   ABSENCE
   DISPLACEMENT
-  TIME_CLOCK
+  TASK
   HOLIDAY
   EMPTY
 }
@@ -53,7 +53,6 @@ model PayrollCycle {
   completedAt  DateTime?
   resetAt      DateTime?
   scanBatches  ScanBatch[]
-  timeClockReports TimeClockReport[]
   calculationRun CalculationRun?
 
   @@index([status])
@@ -85,7 +84,6 @@ model Employee {
   updatedAt          DateTime           @updatedAt
   listImport         EmployeeListImport @relation(fields: [listImportId], references: [id], onDelete: Cascade)
   extractedRows      ExtractedTimeSheetRow[]
-  timeClockReports   TimeClockReport[]
   calculations       EmployeeCalculation[]
 
   @@index([normalizedFullName])
@@ -133,31 +131,12 @@ model ExtractedTimeSheetRow {
   matchedFullName      String?
   sourceRowLabel       String?
   days                 Json
-  hasTimeClockCode     Boolean      @default(false)
   requiresReview       Boolean      @default(false)
   createdAt            DateTime     @default(now())
   document             ScanDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
   employee             Employee?    @relation(fields: [employeeId], references: [id], onDelete: SetNull)
 
   @@index([documentId])
-  @@index([employeeId])
-  @@index([hasTimeClockCode])
-}
-
-model TimeClockReport {
-  id           String       @id @default(uuid())
-  cycleId      String
-  employeeId   String
-  fileName     String
-  storageUrl   String?
-  storageKey   String?
-  days         Json
-  importedAt   DateTime     @default(now())
-  cycle        PayrollCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@unique([cycleId, employeeId])
-  @@index([cycleId, importedAt])
   @@index([employeeId])
 }
 
@@ -194,6 +173,7 @@ model EmployeeCalculation {
   overtimeMiniMinutes    Int            @default(0)
   overtimeMaxiMinutes    Int            @default(0)
   displacementDays       Int            @default(0)
+  taskDays               Int            @default(0)
   requiresReview         Boolean        @default(false)
   warnings               Json
   details                Json
