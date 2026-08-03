@@ -223,7 +223,7 @@ export class ScansService {
     const parsed = parseTimeSheetDayValue(value);
     if (!parsed.supported) {
       throw new BadRequestException(
-        'Valeur attendue: heures, heures avec D ou F, P, A, 0, X, T, F, STC, MU, RC, CP, MA ou vide.',
+        'Valeur attendue: heures, heures avec D ou F, A, 0, X, T, F, STC, MU, RC, CP, MA ou vide.',
       );
     }
     return parsed.normalized;

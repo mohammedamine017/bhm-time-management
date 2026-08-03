@@ -6,7 +6,7 @@
 - Angular, NestJS, PostgreSQL avec Prisma.
 - Docker pour le developpement et Railway pour le deploiement futur.
 - Un seul cycle actif, calcule automatiquement du 20 du mois precedent au 19 du mois de paie.
-- Codes metier configurables: nombre, P, A, D, T, F, X et case vide.
+- Codes metier: nombre, A, 0, X, T, F, STC, MU, RC, CP, MA, heures avec D ou F, et case vide.
 
 ## Phase 1 - Liste active des employes
 
