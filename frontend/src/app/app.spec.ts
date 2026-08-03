@@ -43,4 +43,23 @@ describe('App', () => {
       'Documents',
     ]);
   });
+
+  it('opens and closes the mobile menu when navigating', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const toggle = element.querySelector<HTMLButtonElement>('.menu-toggle')!;
+    const employeesButton = Array.from(
+      element.querySelectorAll<HTMLButtonElement>('.nav button'),
+    ).find((button) => button.textContent?.includes('Employés'))!;
+
+    toggle.click();
+    fixture.detectChanges();
+    expect(element.querySelector('.sidebar')?.classList).toContain('open');
+
+    employeesButton.click();
+    fixture.detectChanges();
+    expect(element.querySelector('.sidebar')?.classList).not.toContain('open');
+    expect(element.querySelector('main h1')?.textContent).toContain('Employés');
+  });
 });

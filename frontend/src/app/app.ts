@@ -53,6 +53,7 @@ type AppView =
 })
 export class App implements OnInit {
   protected readonly activeView = signal<AppView>('overview');
+  protected readonly mobileMenuOpen = signal(false);
   protected readonly cycle = signal<PayrollCycle | null>(null);
   protected readonly cycleError = signal('');
   protected readonly loading = signal(false);
@@ -195,11 +196,20 @@ export class App implements OnInit {
 
   protected setView(view: AppView) {
     this.activeView.set(view);
+    this.mobileMenuOpen.set(false);
     if (view === 'time-sheets') this.loadScanBatch();
     if (view === 'required-reports') this.loadRequiredReports();
     if (view === 'holidays') this.loadHolidays();
     if (view === 'calculation-history') this.loadCalculationHistory();
     if (view === 'documents') this.loadArchives();
+  }
+
+  protected toggleMobileMenu() {
+    this.mobileMenuOpen.update((open) => !open);
+  }
+
+  protected closeMobileMenu() {
+    this.mobileMenuOpen.set(false);
   }
 
   protected activeViewLabel() {

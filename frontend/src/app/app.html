@@ -88,14 +88,57 @@
     }
   </main>
 } @else {
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
+  <div class="app-shell" [class.menu-open]="mobileMenuOpen()">
+    <header class="mobile-header">
+      <div class="mobile-brand">
         <span class="brand-mark">BHM</span>
         <div>
-          <strong>Time Management</strong>
-          <small>Gestion des horaires</small>
+          <strong>{{ activeViewLabel() }}</strong>
+          <small>Time Management</small>
         </div>
+      </div>
+      <button
+        type="button"
+        class="menu-toggle"
+        aria-label="Ouvrir le menu"
+        [attr.aria-expanded]="mobileMenuOpen()"
+        aria-controls="main-sidebar"
+        (click)="toggleMobileMenu()"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </header>
+
+    <button
+      type="button"
+      class="sidebar-backdrop"
+      aria-label="Fermer le menu"
+      (click)="closeMobileMenu()"
+    ></button>
+
+    <aside
+      id="main-sidebar"
+      class="sidebar"
+      [class.open]="mobileMenuOpen()"
+    >
+      <div class="sidebar-heading">
+        <div class="brand">
+          <span class="brand-mark">BHM</span>
+          <div>
+            <strong>Time Management</strong>
+            <small>Gestion des horaires</small>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="menu-close"
+          aria-label="Fermer le menu"
+          (click)="closeMobileMenu()"
+        >
+          ×
+        </button>
       </div>
 
       <nav class="nav" aria-label="Navigation principale">
