@@ -337,6 +337,8 @@ p {
 .operational-table-wrap {
   margin-top: 12px;
   overflow: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: white;
@@ -763,6 +765,8 @@ th {
 .calculation-table-wrap {
   max-height: 62vh;
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--line);
   border-radius: 7px;
 }
@@ -1359,6 +1363,8 @@ th {
   max-height: none;
   flex: 1;
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .time-clock-table-wrap th,
@@ -1834,6 +1840,8 @@ th {
   min-height: 0;
   flex: 1;
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .extraction-table {
@@ -1956,13 +1964,60 @@ th {
   }
 
   .sidebar {
-    position: static;
-    gap: 14px;
+    position: sticky;
+    z-index: 10;
+    top: 0;
+    min-width: 0;
+    max-width: 100vw;
+    box-sizing: border-box;
+    gap: 10px;
     border-right: 0;
+    border-bottom: 1px solid #234c7d;
+    padding: 12px 16px 10px;
   }
 
   .nav {
-    grid-template-columns: 1fr;
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-group {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+  }
+
+  .nav-group + .nav-group {
+    border-top: 0;
+    border-left: 1px solid rgb(255 255 255 / 18%);
+    padding-top: 0;
+    padding-left: 8px;
+  }
+
+  .nav-group-label {
+    display: none;
+  }
+
+  .nav button {
+    width: 154px;
+    min-height: 48px;
+    flex: 0 0 auto;
+    padding: 8px 10px;
+  }
+
+  .nav button.active {
+    box-shadow: inset 0 -3px 0 white;
   }
 
   .sidebar-note {
@@ -1971,6 +2026,39 @@ th {
 
   .workspace {
     padding: 20px 16px 36px;
+  }
+
+  .modal-backdrop {
+    align-items: stretch;
+    padding: 8px;
+  }
+
+  .report-modal,
+  .calculation-modal,
+  .extraction-modal {
+    width: 100%;
+    height: calc(100dvh - 16px);
+  }
+
+  .reset-modal,
+  .qr-modal {
+    align-self: center;
+    max-height: calc(100dvh - 16px);
+    overflow: auto;
+  }
+
+  .report-modal > header,
+  .calculation-modal > header,
+  .extraction-header {
+    flex: 0 0 auto;
+  }
+
+  .calculation-warning {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .calculation-warning > p {
+    grid-column: 1 / -1;
   }
 
   .document-grid article,
@@ -2020,6 +2108,28 @@ th {
 }
 
 @media (max-width: 560px) {
+  .sidebar {
+    padding: 10px 12px 8px;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+  }
+
+  .brand small {
+    display: none;
+  }
+
+  .nav button {
+    width: 132px;
+    min-height: 44px;
+  }
+
+  .nav button span {
+    display: none;
+  }
+
   .topbar,
   .overview-heading,
   .page-panel,
@@ -2036,6 +2146,14 @@ th {
 
   .month-control {
     width: 100%;
+  }
+
+  .month-control input,
+  .search-control input,
+  .filter-control select,
+  button,
+  .button {
+    min-height: 44px;
   }
 
   .flow-actions,
@@ -2069,5 +2187,62 @@ th {
   .filtered-count {
     margin-left: 0;
     padding-bottom: 0;
+  }
+
+  .calculation-summary,
+  .history-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .calculation-summary > div,
+  .history-summary > div {
+    padding: 10px;
+  }
+
+  .calculation-warning {
+    padding: 10px 12px;
+  }
+
+  .report-modal > header,
+  .calculation-modal > header,
+  .extraction-header {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .review-legend,
+  .report-edit-note {
+    padding-inline: 12px;
+  }
+
+  .extraction-table .employee-column {
+    width: 142px;
+    min-width: 142px;
+  }
+
+  .extraction-table .status-column {
+    left: 142px;
+    width: 92px;
+    min-width: 92px;
+  }
+
+  .reset-modal {
+    gap: 14px;
+    padding: 18px;
+  }
+
+  .reset-actions,
+  .document-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mobile-scan {
+    padding: 14px;
+  }
+
+  .mobile-upload {
+    margin-top: 16px;
+    padding: 28px 14px;
   }
 }
