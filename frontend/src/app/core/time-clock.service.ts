@@ -4,7 +4,7 @@ import { RequiredTimeClockReports } from './time-clock.models';
 
 @Injectable({ providedIn: 'root' })
 export class TimeClockService {
-  private readonly apiUrl = `${window.location.protocol}//${window.location.hostname}:3006`;
+  private readonly apiUrl = '/api';
 
   constructor(private readonly http: HttpClient) {}
 

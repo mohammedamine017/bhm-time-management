@@ -44,6 +44,14 @@ L'API est disponible sur `http://127.0.0.1:3006`.
 Pour tester sans appeler Claude, définir `ENABLE_MOCK_EXTRACTION="true"` dans
 le fichier `.env`. Cette option doit rester à `false` dans un environnement réel.
 
+## Déploiement Railway
+
+- Configurer `backend` comme dossier racine du service API.
+- Configurer `frontend` comme dossier racine du service web.
+- Dans le service frontend, définir `BACKEND_URL` avec le domaine public HTTPS
+  du backend, sans barre oblique finale.
+- Ne pas définir manuellement `PORT` : Railway le fournit aux deux services.
+
 ## Validation par phase
 
 Chaque phase est livrée verticalement, de PostgreSQL jusqu'à l'interface, puis
