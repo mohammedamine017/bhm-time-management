@@ -67,6 +67,8 @@ export class App implements OnInit {
   protected readonly selectedDocument = signal<ScanDocument | null>(null);
   protected readonly retryingDocument = signal('');
   private scanRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private qrRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private qrKnownDocumentIds = new Set<string>();
   protected readonly savingCell = signal('');
   protected readonly extractionError = signal('');
   protected readonly calculationStatus = signal<CalculationStatus | null>(null);
@@ -119,7 +121,7 @@ export class App implements OnInit {
     {
       label: 'Pilotage',
       items: [
-        { view: 'overview', label: 'Vue d’ensemble', helper: 'Cycle actif' },
+        { view: 'overview', label: 'Vue d’ensemble', helper: 'Période active' },
       ],
     },
     {
@@ -129,7 +131,7 @@ export class App implements OnInit {
         {
           view: 'time-sheets',
           label: 'Feuilles horaires',
-          helper: 'Scans et contrôles',
+          helper: 'Feuilles et contrôles',
         },
         { view: 'holidays', label: 'Jours fériés', helper: 'Calendrier' },
       ],
@@ -140,7 +142,7 @@ export class App implements OnInit {
         {
           view: 'calculation-history',
           label: 'Historique des calculs',
-          helper: 'Cycles archivés',
+          helper: 'Périodes archivées',
         },
         { view: 'documents', label: 'Documents', helper: 'Fichiers archivés' },
       ],
@@ -204,16 +206,64 @@ export class App implements OnInit {
   }
 
   protected openQr() {
+    this.stopQrWatcher();
     this.showQr.set(true);
     this.scanQr.set(null);
     this.scans.qr().subscribe({
       next: (qr) => this.scanQr.set(qr),
       error: () => this.scanError.set('QR indisponible.'),
     });
+    this.scans.latest(this.payrollMonth()).subscribe({
+      next: (batch) => {
+        this.scanBatch.set(batch);
+        this.qrKnownDocumentIds = new Set(
+          batch?.documents.map((document) => document.id) ?? [],
+        );
+        this.watchQrUploads();
+      },
+      error: () => {
+        this.qrKnownDocumentIds = new Set(
+          this.scanBatch()?.documents.map((document) => document.id) ?? [],
+        );
+        this.watchQrUploads();
+      },
+    });
   }
 
   protected closeQr() {
     this.showQr.set(false);
+    this.stopQrWatcher();
+  }
+
+  private watchQrUploads() {
+    if (!this.showQr()) return;
+    this.scans.latest(this.payrollMonth()).subscribe({
+      next: (batch) => {
+        const hasNewDocument = batch?.documents.some(
+          (document) => !this.qrKnownDocumentIds.has(document.id),
+        );
+        if (hasNewDocument) {
+          this.scanBatch.set(batch);
+          this.showQr.set(false);
+          this.stopQrWatcher();
+          this.setView('time-sheets');
+          return;
+        }
+        this.scheduleQrRefresh();
+      },
+      error: () => this.scheduleQrRefresh(),
+    });
+  }
+
+  private scheduleQrRefresh() {
+    if (!this.showQr()) return;
+    this.qrRefreshTimer = setTimeout(() => this.watchQrUploads(), 3000);
+  }
+
+  private stopQrWatcher() {
+    if (!this.qrRefreshTimer) return;
+    clearTimeout(this.qrRefreshTimer);
+    this.qrRefreshTimer = null;
   }
 
   protected addScanFiles(event: Event) {
@@ -354,7 +404,10 @@ export class App implements OnInit {
   }
 
   protected confidenceLabel(day: ExtractedDay) {
-    return `Confiance ${Math.round(day.confidence * 100)} %`;
+    if (!day.needsReview) return 'Case validée';
+    return day.confidence === 0.6
+      ? 'Lecture à contrôler'
+      : 'Lecture très incertaine';
   }
 
   protected saveExtractedDay(
@@ -507,7 +560,7 @@ export class App implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.cycleError.set('Le backend est indisponible.');
+        this.cycleError.set('Le service est temporairement indisponible.');
         this.loading.set(false);
       },
     });

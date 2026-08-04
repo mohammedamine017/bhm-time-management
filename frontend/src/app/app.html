@@ -11,7 +11,7 @@
       <section class="mobile-upload success-state">
         <div class="success-symbol" aria-hidden="true">✓</div>
         <h2>Documents reçus</h2>
-        <p>L’extraction continue en arrière-plan. Vous pouvez fermer cette page.</p>
+        <p>La lecture des documents continue. Vous pouvez fermer cette page.</p>
         <button class="primary" type="button" (click)="sendAnotherScanBatch()">
           Envoyer un autre lot
         </button>
@@ -54,7 +54,7 @@
           <div class="mobile-file-list">
             @for (file of scanFiles(); track $index) {
               <div>
-                <span class="file-type">{{ file.type === 'application/pdf' ? 'PDF' : 'IMG' }}</span>
+                <span class="file-type">{{ file.type === 'application/pdf' ? 'PDF' : 'Photo' }}</span>
                 <strong>{{ file.name }}</strong>
                 <button
                   type="button"
@@ -73,11 +73,11 @@
             [disabled]="scanBusy()"
             (click)="sendScans()"
           >
-            {{ scanBusy() ? 'Extraction en cours...' : 'Envoyer les documents' }}
+            {{ scanBusy() ? 'Envoi en cours...' : 'Envoyer les documents' }}
           </button>
           @if (scanBusy()) {
             <p class="processing-note">
-              Claude analyse chaque document séparément. Gardez cette page ouverte.
+              Chaque document sera lu séparément après son envoi.
             </p>
           }
         </section>
@@ -161,7 +161,7 @@
       </nav>
 
       <div class="sidebar-note">
-        <span>Cycle unique</span>
+        <span>Période active</span>
         <strong>{{ cycleLabel() }}</strong>
       </div>
     </aside>
@@ -191,7 +191,7 @@
         @case ('overview') {
           <section class="overview-heading">
             <div>
-              <p class="eyebrow">Happy flow</p>
+              <p class="eyebrow">Préparation mensuelle</p>
               <h2>Préparer l’opération mensuelle</h2>
             </div>
             <div class="actions">
@@ -249,20 +249,20 @@
                 @if (scanBatch(); as batch) {
                   <p>
                     {{ batch.documents.length }} document(s) ·
-                    {{ extractedRowCount() }} ligne(s) extraite(s)
+                    {{ extractedRowCount() }} ligne(s) reconnue(s)
                   </p>
                   <small>
-                    {{ batch.batchCount }} lot(s) ·
+                    {{ batch.batchCount }} envoi(s) ·
                     {{
                       batch.status === 'EXTRACTED'
                         ? 'Dernier lot terminé'
                         : batch.status === 'FAILED'
-                          ? 'Erreur d’extraction'
-                          : 'Extraction en cours'
+                          ? 'Lecture impossible'
+                          : 'Lecture en cours'
                     }}
                   </small>
                 } @else {
-                  <p>QR permanent prêt pour le scan mobile.</p>
+                  <p>QR permanent prêt pour l’envoi depuis le téléphone.</p>
                 }
               </div>
               <div class="flow-actions">
@@ -279,7 +279,7 @@
             <section class="data-panel calculation-panel">
               <header>
                 <div>
-                  <p class="eyebrow">Résultats du cycle</p>
+                  <p class="eyebrow">Résultats de la période</p>
                   <h2>Rubriques calculées</h2>
                   <p>
                     {{ run.results.length }} employé(s) · {{ run.openDays }} jour(s)
@@ -384,7 +384,7 @@
             </section>
           } @else {
             <section class="empty-result">
-              <h2>Résultats du cycle</h2>
+              <h2>Résultats de la période</h2>
               @if (calculationStatus()?.canLaunch) {
                 <p>Les documents sont prêts. Lancez l’opération pour calculer les rubriques.</p>
               } @else {
@@ -397,11 +397,11 @@
         @case ('time-sheets') {
           <section class="page-panel">
             <div>
-              <p class="eyebrow">Suivi OCR</p>
+              <p class="eyebrow">Suivi des feuilles</p>
               <h2>Feuilles horaires</h2>
               <p>
                 Consultez les feuilles reçues et contrôlez uniquement les cases
-                signalées par l’extraction.
+                signalées lors de la lecture.
               </p>
             </div>
             <button class="primary" type="button" (click)="openQr()">
@@ -421,11 +421,11 @@
               </div>
               <div>
                 <strong>{{ extractedRowCount() }}</strong>
-                <span>ligne(s) extraite(s)</span>
+                <span>ligne(s) reconnue(s)</span>
               </div>
               <div>
                 <strong>{{ batch.batchCount }}</strong>
-                <span>lot(s) envoyé(s)</span>
+                <span>envoi(s)</span>
               </div>
             </section>
 
@@ -449,7 +449,7 @@
                     <option value="PROCESSING">En cours</option>
                     <option value="CONTROL">À contrôler</option>
                   <option value="VERIFIED">Vérifiées</option>
-                  <option value="FAILED">Échecs</option>
+                  <option value="FAILED">Lecture impossible</option>
                 </select>
               </label>
               <span class="filtered-count">
@@ -463,7 +463,7 @@
                   <tr>
                     <th>Feuille</th>
                     <th>Date d’envoi</th>
-                    <th>Extraction</th>
+                    <th>Lignes reconnues</th>
                     <th>État</th>
                     <th class="actions-column">Actions</th>
                   </tr>
@@ -477,7 +477,7 @@
                       <td>
                         <div class="file-identity">
                           <span class="file-type">
-                            {{ document.mimeType === 'application/pdf' ? 'PDF' : 'IMG' }}
+                            {{ document.mimeType === 'application/pdf' ? 'PDF' : 'Photo' }}
                           </span>
                           <strong>{{ document.fileName }}</strong>
                         </div>
@@ -499,11 +499,11 @@
                             documentIsProcessing(document)
                               ? document.status === 'PENDING'
                                 ? 'En attente'
-                                : 'Extraction en cours'
+                                : 'Lecture en cours'
                               : documentNeedsReview(document)
                                 ? 'À contrôler'
                                 : documentExtractionFailed(document)
-                                  ? 'Extraction échouée'
+                                  ? 'Lecture impossible'
                                   : documentIsVerified(document)
                                     ? 'Vérifiée'
                                     : 'Archivée'
@@ -511,7 +511,7 @@
                         </span>
                         @if (documentExtractionFailed(document) && document.errorMessage) {
                           <small class="status-detail warning-text">
-                            {{ document.errorMessage }}
+                            La lecture de cette feuille n’a pas abouti. Vous pouvez la relancer.
                           </small>
                         }
                       </td>
@@ -547,7 +547,7 @@
                               target="_blank"
                               rel="noopener"
                             >
-                              Source
+                              Voir la feuille
                             </a>
                           }
                         </div>
@@ -576,7 +576,7 @@
             <div>
               <p class="eyebrow">Référence active</p>
               <h2>Liste des employés</h2>
-              <p>Une seule liste sera utilisée pour reconnaître les noms extraits.</p>
+              <p>Une seule liste sera utilisée pour reconnaître les noms lus sur les feuilles.</p>
             </div>
             <div class="actions">
               @if (employeeList()) {
@@ -767,7 +767,7 @@
               <header>
                 <div>
                   <h2>Rubriques calculées</h2>
-                  <p>Instantané conservé en lecture seule.</p>
+                  <p>Résultats conservés en lecture seule.</p>
                 </div>
               </header>
               <div class="list-toolbar embedded" aria-label="Recherche dans le calcul archivé">
@@ -855,7 +855,7 @@
                 <p class="eyebrow">Archives mensuelles</p>
                 <h2>Historique des calculs</h2>
                 <p>
-                  Chaque cycle réinitialisé reste consultable avec ses rubriques
+                  Chaque période terminée reste consultable avec ses rubriques
                   et son détail journalier.
                 </p>
               </div>
@@ -873,7 +873,7 @@
                   />
                 </label>
                 <span class="filtered-count">
-                  {{ filteredCalculationHistory().length }} cycle(s)
+                  {{ filteredCalculationHistory().length }} période(s)
                 </span>
               </div>
 
@@ -939,7 +939,7 @@
               } @else {
                 <div class="empty-result compact">
                   <h2>Aucun calcul archivé</h2>
-                  <p>Le premier historique apparaîtra après la réinitialisation d’un cycle calculé.</p>
+                  <p>Le premier historique apparaîtra après la clôture d’une période calculée.</p>
                 </div>
               }
             </section>
@@ -951,7 +951,7 @@
             <div>
               <p class="eyebrow">Calendrier métier</p>
               <h2>Jours fériés</h2>
-              <p>Ils sont appliqués au cycle du {{ cycleLabel() }}.</p>
+              <p>Ils sont appliqués à la période du {{ cycleLabel() }}.</p>
             </div>
           </section>
           <section class="data-panel holiday-panel">
@@ -1138,10 +1138,10 @@
         <div class="reset-icon" aria-hidden="true">R</div>
         <div>
           <p class="eyebrow">Nouveau traitement</p>
-          <h2 id="reset-title">Réinitialiser le cycle actif ?</h2>
+          <h2 id="reset-title">Clôturer la période active ?</h2>
           <p>
             Le calcul actuel sera archivé avec tout son détail. Les feuilles
-            horaires et extractions actives seront remises à zéro. Les fichiers
+            horaires et données reconnues seront remises à zéro. Les fichiers
             archivés et les jours fériés seront conservés.
           </p>
         </div>
@@ -1195,7 +1195,7 @@
             <p class="eyebrow">Résultat du document</p>
             <h2 id="extraction-title">{{ document.fileName }}</h2>
             <p>
-              {{ document.extractedRows.length }} ligne(s) extraite(s) ·
+              {{ document.extractedRows.length }} ligne(s) reconnue(s) ·
               modifications enregistrées automatiquement
             </p>
           </div>
@@ -1222,8 +1222,8 @@
         </header>
 
         <div class="review-legend" aria-label="Légende des vérifications">
-          <span><i class="review-dot orange"></i> Confiance 60 %</span>
-          <span><i class="review-dot red"></i> Confiance inférieure à 60 %</span>
+          <span><i class="review-dot orange"></i> Lecture à contrôler</span>
+          <span><i class="review-dot red"></i> Lecture très incertaine</span>
           <span><i class="calendar-shade"></i> Week-end ou jour férié</span>
           <span>Une modification manuelle valide la case.</span>
         </div>
@@ -1389,7 +1389,7 @@
                 <th>Saisie feuille</th>
                 <th>Journée</th>
                 <th>Durée</th>
-                <th>Source</th>
+                <th>Feuilles</th>
               </tr>
             </thead>
             <tbody>
