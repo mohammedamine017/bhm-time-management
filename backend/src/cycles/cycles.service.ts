@@ -10,6 +10,7 @@ export class CyclesService {
   async getOrCreateActive(month?: string) {
     const current = await this.prisma.payrollCycle.findFirst({
       where: { status: CycleStatus.ACTIVE },
+      orderBy: { createdAt: 'desc' },
     });
 
     if (!month && current) {
@@ -18,7 +19,31 @@ export class CyclesService {
 
     const targetMonth = month ?? CyclesService.currentMonth();
     const bounds = CyclesService.bounds(targetMonth);
-    if (current?.payrollMonth === targetMonth) return current;
+
+    const existingWithDocuments = await this.prisma.payrollCycle.findFirst({
+      where: {
+        payrollMonth: targetMonth,
+        status: { in: [CycleStatus.ACTIVE, CycleStatus.COMPLETED] },
+        scanBatches: { some: {} },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (
+      current?.payrollMonth === targetMonth &&
+      (!existingWithDocuments || existingWithDocuments.id === current.id)
+    ) {
+      return current;
+    }
+
+    const existing =
+      existingWithDocuments ??
+      (await this.prisma.payrollCycle.findFirst({
+        where: {
+          payrollMonth: targetMonth,
+          status: { in: [CycleStatus.ACTIVE, CycleStatus.COMPLETED] },
+        },
+        orderBy: { createdAt: 'desc' },
+      }));
 
     return this.prisma.$transaction(async (tx) => {
       if (current) {
@@ -27,6 +52,16 @@ export class CyclesService {
           data: {
             status: CycleStatus.COMPLETED,
             completedAt: new Date(),
+          },
+        });
+      }
+
+      if (existing) {
+        return tx.payrollCycle.update({
+          where: { id: existing.id },
+          data: {
+            status: CycleStatus.ACTIVE,
+            completedAt: null,
           },
         });
       }

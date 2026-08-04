@@ -163,13 +163,14 @@ export class App implements OnInit {
 
   ngOnInit() {
     if (!this.isMobileScan) {
-      this.loadCycle();
       this.loadEmployees();
-      this.loadScanBatch();
-      this.loadCalculationStatus();
       this.loadCalculationHistory();
-      this.loadHolidays();
       this.loadArchives();
+      this.loadCycle(() => {
+        this.loadScanBatch();
+        this.loadCalculationStatus();
+        this.loadHolidays();
+      });
     }
   }
 
@@ -199,10 +200,15 @@ export class App implements OnInit {
 
   protected changeMonth(month: string) {
     this.payrollMonth.set(month);
-    this.loadCycle();
-    this.loadScanBatch();
-    this.loadCalculationStatus();
-    this.loadHolidays();
+    this.closeQr();
+    this.scanBatch.set(null);
+    this.calculationStatus.set(null);
+    this.holidays.set([]);
+    this.loadCycle(() => {
+      this.loadScanBatch();
+      this.loadCalculationStatus();
+      this.loadHolidays();
+    });
   }
 
   protected openQr() {
@@ -551,13 +557,14 @@ export class App implements OnInit {
     );
   }
 
-  protected loadCycle() {
+  protected loadCycle(afterLoad?: () => void) {
     this.loading.set(true);
     this.cycleError.set('');
     this.cycles.getActive(this.payrollMonth()).subscribe({
       next: (cycle) => {
         this.cycle.set(cycle);
         this.loading.set(false);
+        afterLoad?.();
       },
       error: () => {
         this.cycleError.set('Le service est temporairement indisponible.');
