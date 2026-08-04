@@ -2,6 +2,9 @@ import {
   Body,
   Controller,
   Get,
+  Header,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -29,6 +32,7 @@ export class ScansController {
   }
 
   @Get('latest')
+  @Header('Cache-Control', 'no-store, no-cache, must-revalidate')
   latest(@Query('month') month?: string) {
     return this.scans.latest(month);
   }
@@ -43,6 +47,7 @@ export class ScansController {
   }
 
   @Post('batches')
+  @HttpCode(HttpStatus.ACCEPTED)
   @UseInterceptors(FilesInterceptor('files', 12, { limits: { fileSize: 12 * 1024 * 1024 } }))
   upload(
     @UploadedFiles()
@@ -50,5 +55,11 @@ export class ScansController {
     @Query('month') month?: string,
   ) {
     return this.scans.upload(files, month);
+  }
+
+  @Post('documents/:documentId/retry')
+  @HttpCode(HttpStatus.ACCEPTED)
+  retry(@Param('documentId') documentId: string) {
+    return this.scans.retryDocument(documentId);
   }
 }

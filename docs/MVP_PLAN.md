@@ -20,10 +20,12 @@
 
 - Ouvrir une page mobile permanente avec un QR code unique.
 - Envoyer plusieurs images ou PDF dans un meme lot.
-- Transmettre les documents et la liste active a Claude.
+- Stocker les documents et retourner immediatement un statut de traitement.
+- Transmettre ensuite chaque document et la liste active a Claude en arriere-plan.
 - Claude extrait les noms et la grille complete du 20 au 19.
 - Claude ignore le titre Atelier, lit toute la zone d'identite et associe les noms a la liste active.
 - Claude retourne un JSON strict directement exploitable.
+- Reprendre les traitements interrompus et relancer uniquement un document echoue.
 
 ## Phase 3 - Codes et rubriques metier
 

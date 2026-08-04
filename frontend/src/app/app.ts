@@ -65,6 +65,8 @@ export class App implements OnInit {
   protected readonly scanError = signal('');
   protected readonly scanSent = signal(false);
   protected readonly selectedDocument = signal<ScanDocument | null>(null);
+  protected readonly retryingDocument = signal('');
+  private scanRefreshTimer: ReturnType<typeof setTimeout> | null = null;
   protected readonly savingCell = signal('');
   protected readonly extractionError = signal('');
   protected readonly calculationStatus = signal<CalculationStatus | null>(null);
@@ -88,7 +90,7 @@ export class App implements OnInit {
   protected readonly employeeSearch = signal('');
   protected readonly timeSheetSearch = signal('');
   protected readonly timeSheetFilter =
-    signal<'ALL' | 'CONTROL' | 'VERIFIED' | 'FAILED'>('ALL');
+    signal<'ALL' | 'PROCESSING' | 'CONTROL' | 'VERIFIED' | 'FAILED'>('ALL');
   protected readonly calculationSearch = signal('');
   protected readonly calculationFilter =
     signal<'ALL' | 'REVIEW' | 'CORRECT'>('ALL');
@@ -242,14 +244,7 @@ export class App implements OnInit {
         this.scanBatch.set(batch);
         this.scanBusy.set(false);
         this.scanFiles.set([]);
-        if (batch.status === 'EXTRACTED') {
-          this.scanSent.set(true);
-        } else {
-          this.scanError.set(
-            batch.errorMessage ??
-              'Les documents sont enregistrés, mais l’extraction doit être vérifiée.',
-          );
-        }
+        this.scanSent.set(true);
         this.loadCalculationStatus();
       },
       error: (error) => {
@@ -286,6 +281,10 @@ export class App implements OnInit {
     return document.status === 'FAILED';
   }
 
+  protected documentIsProcessing(document: ScanDocument) {
+    return document.status === 'PENDING' || document.status === 'PROCESSING';
+  }
+
   protected documentIsVerified(document: ScanDocument) {
     return (
       document.status === 'EXTRACTED' &&
@@ -302,10 +301,42 @@ export class App implements OnInit {
       const filter = this.timeSheetFilter();
       const matchesFilter =
         filter === 'ALL' ||
+        (filter === 'PROCESSING' && this.documentIsProcessing(document)) ||
         (filter === 'CONTROL' && this.documentNeedsReview(document)) ||
         (filter === 'VERIFIED' && this.documentIsVerified(document)) ||
         (filter === 'FAILED' && this.documentExtractionFailed(document));
       return matchesSearch && matchesFilter;
+    });
+  }
+
+  protected retryDocument(document: ScanDocument) {
+    if (!this.documentExtractionFailed(document) || this.retryingDocument()) {
+      return;
+    }
+    this.retryingDocument.set(document.id);
+    this.scanError.set('');
+    this.scans.retryDocument(document.id).subscribe({
+      next: (updated) => {
+        this.scanBatch.update((batch) =>
+          batch
+            ? {
+                ...batch,
+                status: 'PROCESSING',
+                documents: batch.documents.map((item) =>
+                  item.id === updated.id ? updated : item,
+                ),
+              }
+            : batch,
+        );
+        this.retryingDocument.set('');
+        this.loadScanBatch();
+      },
+      error: (error) => {
+        this.scanError.set(
+          error.error?.message ?? 'La relance de cette feuille a échoué.',
+        );
+        this.retryingDocument.set('');
+      },
     });
   }
 
@@ -497,8 +528,28 @@ export class App implements OnInit {
   }
 
   private loadScanBatch() {
+    if (this.scanRefreshTimer) {
+      clearTimeout(this.scanRefreshTimer);
+      this.scanRefreshTimer = null;
+    }
     this.scans.latest(this.payrollMonth()).subscribe({
-      next: (batch) => this.scanBatch.set(batch),
+      next: (batch) => {
+        this.scanBatch.set(batch);
+        this.scanError.set('');
+        const processing = batch?.documents.some((document) =>
+          ['PENDING', 'PROCESSING'].includes(document.status),
+        );
+        if (processing) {
+          this.scanRefreshTimer = setTimeout(() => this.loadScanBatch(), 3000);
+        } else {
+          this.loadCalculationStatus();
+        }
+      },
+      error: () => {
+        this.scanError.set(
+          'Actualisation temporairement indisponible. Les feuilles enregistrées sont conservées.',
+        );
+      },
     });
   }
 

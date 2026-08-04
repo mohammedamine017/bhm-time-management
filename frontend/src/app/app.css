@@ -591,6 +591,11 @@ p {
   color: #875500;
 }
 
+.sheet-status.processing {
+  background: #eaf2fc;
+  color: var(--blue);
+}
+
 .sheet-status.success {
   background: #e7f5ef;
   color: var(--green);

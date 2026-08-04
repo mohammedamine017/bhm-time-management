@@ -10,8 +10,8 @@
     @if (scanSent()) {
       <section class="mobile-upload success-state">
         <div class="success-symbol" aria-hidden="true">✓</div>
-        <h2>Documents envoyés</h2>
-        <p>L’extraction document par document est terminée.</p>
+        <h2>Documents reçus</h2>
+        <p>L’extraction continue en arrière-plan. Vous pouvez fermer cette page.</p>
         <button class="primary" type="button" (click)="sendAnotherScanBatch()">
           Envoyer un autre lot
         </button>
@@ -409,6 +409,10 @@
             </button>
           </section>
 
+          @if (scanError()) {
+            <p class="alert">{{ scanError() }}</p>
+          }
+
           @if (scanBatch(); as batch) {
             <section class="time-sheet-summary">
               <div>
@@ -441,8 +445,9 @@
                   [ngModel]="timeSheetFilter()"
                   (ngModelChange)="timeSheetFilter.set($event)"
                 >
-                  <option value="ALL">Tous</option>
-                  <option value="CONTROL">À contrôler</option>
+                    <option value="ALL">Tous</option>
+                    <option value="PROCESSING">En cours</option>
+                    <option value="CONTROL">À contrôler</option>
                   <option value="VERIFIED">Vérifiées</option>
                   <option value="FAILED">Échecs</option>
                 </select>
@@ -486,19 +491,29 @@
                         <span
                           class="sheet-status"
                           [class.control]="documentNeedsReview(document)"
+                          [class.processing]="documentIsProcessing(document)"
                           [class.success]="documentIsVerified(document)"
                           [class.failed]="documentExtractionFailed(document)"
                         >
                           {{
-                            documentNeedsReview(document)
-                              ? 'À contrôler'
-                              : documentExtractionFailed(document)
-                                ? 'Extraction échouée'
-                                : documentIsVerified(document)
-                                  ? 'Vérifiée'
-                                  : 'Archivée'
+                            documentIsProcessing(document)
+                              ? document.status === 'PENDING'
+                                ? 'En attente'
+                                : 'Extraction en cours'
+                              : documentNeedsReview(document)
+                                ? 'À contrôler'
+                                : documentExtractionFailed(document)
+                                  ? 'Extraction échouée'
+                                  : documentIsVerified(document)
+                                    ? 'Vérifiée'
+                                    : 'Archivée'
                           }}
                         </span>
+                        @if (documentExtractionFailed(document) && document.errorMessage) {
+                          <small class="status-detail warning-text">
+                            {{ document.errorMessage }}
+                          </small>
+                        }
                       </td>
                       <td>
                         <div class="row-actions">
@@ -509,6 +524,20 @@
                               (click)="openExtraction(document)"
                             >
                               Contrôler
+                            </button>
+                          }
+                          @if (documentExtractionFailed(document)) {
+                            <button
+                              class="compact-action"
+                              type="button"
+                              [disabled]="!!retryingDocument()"
+                              (click)="retryDocument(document)"
+                            >
+                              {{
+                                retryingDocument() === document.id
+                                  ? 'Relance...'
+                                  : 'Relancer'
+                              }}
                             </button>
                           }
                           @if (document.storageUrl) {

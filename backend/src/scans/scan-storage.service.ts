@@ -1,13 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary } from 'cloudinary';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 
 interface ScanFile {
   originalname: string;
   buffer: Buffer;
   mimetype: string;
+}
+
+interface StoredScan {
+  fileName: string;
+  mimeType: string;
+  storageUrl: string | null;
+  storageKey: string | null;
 }
 
 @Injectable()
@@ -45,5 +52,28 @@ export class ScanStorageService {
     const storedName = `${Date.now()}-${crypto.randomUUID()}${extname(file.originalname)}`;
     await writeFile(join(directory, storedName), file.buffer);
     return { storageUrl: null, storageKey: `${folder}/${storedName}` };
+  }
+
+  async read(file: StoredScan): Promise<ScanFile> {
+    if (file.storageUrl) {
+      const response = await fetch(file.storageUrl);
+      if (!response.ok) {
+        throw new Error(`Fichier stocke indisponible (${response.status}).`);
+      }
+      return {
+        originalname: file.fileName,
+        mimetype: file.mimeType,
+        buffer: Buffer.from(await response.arrayBuffer()),
+      };
+    }
+
+    if (!file.storageKey) {
+      throw new Error('Reference de stockage manquante.');
+    }
+    return {
+      originalname: file.fileName,
+      mimetype: file.mimeType,
+      buffer: await readFile(join(process.cwd(), 'uploads', file.storageKey)),
+    };
   }
 }

@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { ExtractedRow, ScanBatch, ScanQr } from './scan.models';
+import { ExtractedRow, ScanBatch, ScanDocument, ScanQr } from './scan.models';
 
 @Injectable({ providedIn: 'root' })
 export class ScanService {
@@ -14,7 +14,10 @@ export class ScanService {
 
   latest(month?: string) {
     return this.http.get<ScanBatch | null>(`${this.apiUrl}/scans/latest`, {
-      params: month ? { month } : {},
+      params: {
+        ...(month ? { month } : {}),
+        refresh: Date.now().toString(),
+      },
     });
   }
 
@@ -28,6 +31,13 @@ export class ScanService {
     return this.http.patch<ExtractedRow>(
       `${this.apiUrl}/scans/rows/${rowId}/days/${date}`,
       { value },
+    );
+  }
+
+  retryDocument(documentId: string) {
+    return this.http.post<ScanDocument>(
+      `${this.apiUrl}/scans/documents/${documentId}/retry`,
+      {},
     );
   }
 }

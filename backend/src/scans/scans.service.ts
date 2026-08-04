@@ -1,7 +1,9 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnApplicationBootstrap,
 } from '@nestjs/common';
 import {
   Prisma,
@@ -31,7 +33,11 @@ interface ExtractedDay {
 }
 
 @Injectable()
-export class ScansService {
+export class ScansService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(ScansService.name);
+  private readonly documentQueue: string[] = [];
+  private readonly queuedDocuments = new Set<string>();
+  private workerRunning = false;
   private readonly supportedTypes = new Set([
     'image/jpeg',
     'image/png',
@@ -47,6 +53,10 @@ export class ScansService {
     private readonly claude: ClaudeExtractionService,
     private readonly calculations: CalculationsService,
   ) {}
+
+  onApplicationBootstrap() {
+    setTimeout(() => void this.resumePendingDocuments(), 0);
+  }
 
   async qr(mobileUrl: string) {
     return { mobileUrl, dataUrl: await QRCode.toDataURL(mobileUrl, { width: 280, margin: 1 }) };
@@ -66,10 +76,22 @@ export class ScansService {
     });
     if (!batches.length) return null;
 
+    const documents = batches.flatMap((batch) => batch.documents);
+    const status = documents.some((document) =>
+      [ScanDocumentStatus.PENDING, ScanDocumentStatus.PROCESSING].includes(
+        document.status,
+      ),
+    )
+      ? ScanBatchStatus.PROCESSING
+      : documents.some((document) => document.status === ScanDocumentStatus.FAILED)
+        ? ScanBatchStatus.FAILED
+        : ScanBatchStatus.EXTRACTED;
+
     return {
       ...batches[0],
+      status,
       batchCount: batches.length,
-      documents: batches.flatMap((batch) => batch.documents),
+      documents,
     };
   }
 
@@ -92,7 +114,7 @@ export class ScansService {
     const batch = await this.prisma.scanBatch.create({
       data: { cycleId: cycle.id },
     });
-    let failed = false;
+    const documentIds: string[] = [];
 
     for (const file of files) {
       const stored = await this.storage.store(file);
@@ -102,81 +124,229 @@ export class ScansService {
           fileName: file.originalname,
           mimeType: file.mimetype,
           ...stored,
-          status: ScanDocumentStatus.PROCESSING,
+          status: ScanDocumentStatus.PENDING,
         },
       });
-
-      try {
-        const extraction = await this.claude.extract(
-          file,
-          employees,
-          cycle.startDate,
-          cycle.endDate,
-        );
-        await this.prisma.$transaction([
-          this.prisma.extractedTimeSheetRow.createMany({
-            data: extraction.rows.map((row) => {
-              const employeeId = employees.some(
-                (employee) => employee.id === row.employeeId,
-              )
-                ? row.employeeId
-                : null;
-              const days = row.days.map((day) => {
-                const parsedValue = parseTimeSheetDayValue(day.value);
-                return {
-                  ...day,
-                  value: parsedValue.normalized,
-                  needsReview:
-                    !parsedValue.supported ||
-                    (parsedValue.normalized !== '' && day.confidence <= 0.6),
-                };
-              });
-
-              return {
-                documentId: document.id,
-                employeeId,
-                extractedFullName: row.extractedFullName,
-                matchedFullName: row.matchedFullName,
-                sourceRowLabel: row.sourceRowLabel,
-                days,
-                requiresReview:
-                  !employeeId || days.some((day) => day.needsReview),
-              };
-            }),
-          }),
-          this.prisma.scanDocument.update({
-            where: { id: document.id },
-            data: {
-              status: ScanDocumentStatus.EXTRACTED,
-              extractedAt: new Date(),
-            },
-          }),
-        ]);
-      } catch (error) {
-        failed = true;
-        await this.prisma.scanDocument.update({
-          where: { id: document.id },
-          data: {
-            status: ScanDocumentStatus.FAILED,
-            errorMessage: this.errorMessage(error),
-          },
-        });
-      }
+      documentIds.push(document.id);
     }
-
-    await this.prisma.scanBatch.update({
-      where: { id: batch.id },
-      data: {
-        status: failed ? ScanBatchStatus.FAILED : ScanBatchStatus.EXTRACTED,
-        extractedAt: new Date(),
-        errorMessage: failed ? 'Un ou plusieurs documents n’ont pas pu etre extraits.' : null,
-      },
-    });
-    await this.calculations.recalculateIfExists(cycle.id);
 
     const result = await this.latest(cycle.payrollMonth);
     if (!result) throw new NotFoundException('Lot introuvable.');
+    this.enqueueDocuments(documentIds);
     return result;
+  }
+
+  async retryDocument(documentId: string) {
+    const document = await this.prisma.scanDocument.findUnique({
+      where: { id: documentId },
+      include: { extractedRows: true },
+    });
+    if (!document) throw new NotFoundException('Feuille introuvable.');
+    if (document.status !== ScanDocumentStatus.FAILED) {
+      throw new BadRequestException(
+        'Seule une extraction echouee peut etre relancee.',
+      );
+    }
+
+    const [, updated] = await this.prisma.$transaction([
+      this.prisma.extractedTimeSheetRow.deleteMany({
+        where: { documentId },
+      }),
+      this.prisma.scanDocument.update({
+        where: { id: documentId },
+        data: {
+          status: ScanDocumentStatus.PENDING,
+          errorMessage: null,
+          extractedAt: null,
+        },
+        include: { extractedRows: true },
+      }),
+      this.prisma.scanBatch.update({
+        where: { id: document.batchId },
+        data: {
+          status: ScanBatchStatus.PROCESSING,
+          errorMessage: null,
+          extractedAt: null,
+        },
+      }),
+    ]);
+    this.enqueueDocuments([documentId]);
+    return updated;
+  }
+
+  private async resumePendingDocuments() {
+    try {
+      await this.prisma.scanDocument.updateMany({
+        where: { status: ScanDocumentStatus.PROCESSING },
+        data: { status: ScanDocumentStatus.PENDING },
+      });
+      const documents = await this.prisma.scanDocument.findMany({
+        where: { status: ScanDocumentStatus.PENDING },
+        select: { id: true },
+        orderBy: { uploadedAt: 'asc' },
+      });
+      this.enqueueDocuments(documents.map((document) => document.id));
+    } catch (error) {
+      this.logger.error(
+        `Reprise des extractions impossible: ${this.errorMessage(error)}`,
+      );
+    }
+  }
+
+  private enqueueDocuments(documentIds: string[]) {
+    for (const documentId of documentIds) {
+      if (this.queuedDocuments.has(documentId)) continue;
+      this.queuedDocuments.add(documentId);
+      this.documentQueue.push(documentId);
+    }
+    if (!this.workerRunning && this.documentQueue.length) {
+      setTimeout(() => void this.runWorker(), 0);
+    }
+  }
+
+  private async runWorker() {
+    if (this.workerRunning) return;
+    this.workerRunning = true;
+    try {
+      while (this.documentQueue.length) {
+        const documentId = this.documentQueue.shift();
+        if (!documentId) continue;
+        try {
+          await this.processDocument(documentId);
+        } catch (error) {
+          this.logger.error(
+            `Traitement ${documentId} interrompu: ${this.errorMessage(error)}`,
+          );
+        } finally {
+          this.queuedDocuments.delete(documentId);
+        }
+      }
+    } finally {
+      this.workerRunning = false;
+      if (this.documentQueue.length) {
+        setTimeout(() => void this.runWorker(), 0);
+      }
+    }
+  }
+
+  private async processDocument(documentId: string) {
+    const claimed = await this.prisma.scanDocument.updateMany({
+      where: { id: documentId, status: ScanDocumentStatus.PENDING },
+      data: { status: ScanDocumentStatus.PROCESSING, errorMessage: null },
+    });
+    if (!claimed.count) return;
+
+    const document = await this.prisma.scanDocument.findUnique({
+      where: { id: documentId },
+      include: { batch: { include: { cycle: true } } },
+    });
+    if (!document) return;
+
+    try {
+      const employees = await this.prisma.employee.findMany({
+        where: { listImport: { status: 'ACTIVE' } },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      });
+      if (!employees.length) {
+        throw new Error('La liste active des employes est requise.');
+      }
+      const file = await this.storage.read(document);
+      const extraction = await this.claude.extract(
+        { ...file, size: file.buffer.length },
+        employees,
+        document.batch.cycle.startDate,
+        document.batch.cycle.endDate,
+      );
+
+      await this.prisma.$transaction([
+        this.prisma.extractedTimeSheetRow.deleteMany({
+          where: { documentId },
+        }),
+        this.prisma.extractedTimeSheetRow.createMany({
+          data: extraction.rows.map((row) => {
+            const employeeId = employees.some(
+              (employee) => employee.id === row.employeeId,
+            )
+              ? row.employeeId
+              : null;
+            const days = row.days.map((day) => {
+              const parsedValue = parseTimeSheetDayValue(day.value);
+              return {
+                ...day,
+                value: parsedValue.normalized,
+                needsReview:
+                  !parsedValue.supported ||
+                  (parsedValue.normalized !== '' && day.confidence <= 0.6),
+              };
+            });
+
+            return {
+              documentId,
+              employeeId,
+              extractedFullName: row.extractedFullName,
+              matchedFullName: row.matchedFullName,
+              sourceRowLabel: row.sourceRowLabel,
+              days,
+              requiresReview:
+                !employeeId || days.some((day) => day.needsReview),
+            };
+          }),
+        }),
+        this.prisma.scanDocument.update({
+          where: { id: documentId },
+          data: {
+            status: ScanDocumentStatus.EXTRACTED,
+            errorMessage: null,
+            extractedAt: new Date(),
+          },
+        }),
+      ]);
+    } catch (error) {
+      await this.prisma.scanDocument.update({
+        where: { id: documentId },
+        data: {
+          status: ScanDocumentStatus.FAILED,
+          errorMessage: this.errorMessage(error),
+          extractedAt: null,
+        },
+      });
+    } finally {
+      await this.refreshBatch(document.batchId, document.batch.cycleId);
+    }
+  }
+
+  private async refreshBatch(batchId: string, cycleId: string) {
+    const documents = await this.prisma.scanDocument.findMany({
+      where: { batchId },
+      select: { status: true },
+    });
+    const processing = documents.some((document) =>
+      [ScanDocumentStatus.PENDING, ScanDocumentStatus.PROCESSING].includes(
+        document.status,
+      ),
+    );
+    const failed = documents.some(
+      (document) => document.status === ScanDocumentStatus.FAILED,
+    );
+    const status = processing
+      ? ScanBatchStatus.PROCESSING
+      : failed
+        ? ScanBatchStatus.FAILED
+        : ScanBatchStatus.EXTRACTED;
+
+    await this.prisma.scanBatch.update({
+      where: { id: batchId },
+      data: {
+        status,
+        extractedAt: processing ? null : new Date(),
+        errorMessage: failed
+          ? 'Un ou plusieurs documents n’ont pas pu etre extraits.'
+          : null,
+      },
+    });
+    if (!processing) {
+      await this.calculations.recalculateIfExists(cycleId);
+    }
   }
 
   async updateDay(rowId: string, date: string, value: string) {

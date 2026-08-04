@@ -15,11 +15,12 @@ L'ancien projet reste indépendant et n'est pas utilisé par cette version.
 ## Flux cible
 
 1. Importer une liste active d'employés.
-2. Scanner les feuilles depuis le QR permanent.
-3. Recevoir le JSON structuré extrait par Claude.
-4. Lancer le calcul lorsque les employés et les feuilles sont prêts.
-5. Vérifier, corriger et exporter les résultats.
-6. Réinitialiser les données opérationnelles tout en conservant les documents archivés.
+2. Scanner les feuilles depuis le QR permanent et les stocker immédiatement.
+3. Extraire chaque document avec Claude en arrière-plan, avec reprise après redémarrage.
+4. Suivre l’état des documents et relancer uniquement les extractions échouées.
+5. Lancer le calcul lorsque les employés et les feuilles sont prêts.
+6. Vérifier, corriger et exporter les résultats.
+7. Réinitialiser les données opérationnelles tout en conservant les documents archivés.
 
 ## Règles fondatrices
 
