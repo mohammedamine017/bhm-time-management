@@ -77,10 +77,10 @@ export class ScansService implements OnApplicationBootstrap {
     if (!batches.length) return null;
 
     const documents = batches.flatMap((batch) => batch.documents);
-    const status = documents.some((document) =>
-      [ScanDocumentStatus.PENDING, ScanDocumentStatus.PROCESSING].includes(
-        document.status,
-      ),
+    const status = documents.some(
+      (document) =>
+        document.status === ScanDocumentStatus.PENDING ||
+        document.status === ScanDocumentStatus.PROCESSING,
     )
       ? ScanBatchStatus.PROCESSING
       : documents.some((document) => document.status === ScanDocumentStatus.FAILED)
@@ -252,7 +252,7 @@ export class ScansService implements OnApplicationBootstrap {
       }
       const file = await this.storage.read(document);
       const extraction = await this.claude.extract(
-        { ...file, size: file.buffer.length },
+        file,
         employees,
         document.batch.cycle.startDate,
         document.batch.cycle.endDate,
@@ -320,10 +320,10 @@ export class ScansService implements OnApplicationBootstrap {
       where: { batchId },
       select: { status: true },
     });
-    const processing = documents.some((document) =>
-      [ScanDocumentStatus.PENDING, ScanDocumentStatus.PROCESSING].includes(
-        document.status,
-      ),
+    const processing = documents.some(
+      (document) =>
+        document.status === ScanDocumentStatus.PENDING ||
+        document.status === ScanDocumentStatus.PROCESSING,
     );
     const failed = documents.some(
       (document) => document.status === ScanDocumentStatus.FAILED,
