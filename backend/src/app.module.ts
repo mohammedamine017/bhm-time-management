@@ -8,6 +8,7 @@ import { ScansModule } from './scans/scans.module';
 import { CalculationsModule } from './calculations/calculations.module';
 import { HolidaysModule } from './holidays/holidays.module';
 import { DocumentsModule } from './documents/documents.module';
+import { TimeClockModule } from './time-clock/time-clock.module';
 
 @Module({
   // Keep each MVP phase registered as an explicit vertical module.
@@ -20,6 +21,7 @@ import { DocumentsModule } from './documents/documents.module';
     CalculationsModule,
     HolidaysModule,
     DocumentsModule,
+    TimeClockModule,
   ],
   controllers: [AppController],
 })

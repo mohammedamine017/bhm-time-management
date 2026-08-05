@@ -12,9 +12,22 @@ export interface ScannedCalculationDay {
 export interface EmployeeCalculationInput {
   employeeId: string;
   scannedDays: ScannedCalculationDay[];
+  administrationDays?: AdministrationCalculationDay[];
   holidayDates: Set<string>;
   adjustmentMinutes: number;
   cycleDates?: string[];
+}
+
+export interface AdministrationCalculationDay {
+  date: string;
+  durationMinutes: number;
+  punches: string[];
+  state: 'WORKED' | 'ABSENT' | 'WEEKEND' | 'EMPTY';
+  stateLabel: string;
+  needsReview: boolean;
+  reportId: string;
+  fileName: string;
+  storageUrl: string | null;
 }
 
 export interface CalculationDayDetail {
@@ -22,6 +35,7 @@ export interface CalculationDayDetail {
   values: string[];
   dayType: 'WORKDAY' | 'WEEKEND' | 'HOLIDAY';
   workedMinutes: number;
+  administrationMinutes: number;
   normalMinutes: number;
   absenceDay: boolean;
   stcDay: boolean;
@@ -46,7 +60,7 @@ export interface CalculationDayDetail {
 export interface EmployeeCalculationOutput {
   employeeId: string;
   normalMinutes: number;
-  absenceDays: number;
+  absenceMinutes: number;
   stcDays: number;
   paidLeaveDays: number;
   sickLeaveDays: number;

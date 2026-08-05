@@ -38,7 +38,7 @@
           <header>
             <div>
               <h2>{{ scanFiles().length }} document(s)</h2>
-              <p>Maximum 12 fichiers par envoi.</p>
+              <p>Maximum 12 fichiers par envoi, 12 Mo par fichier.</p>
             </div>
             <label class="icon-button" title="Ajouter d’autres documents">
               +
@@ -273,6 +273,25 @@
               </div>
             </article>
 
+            <article class="flow-item">
+              <span class="step-number">3</span>
+              <div>
+                <h3>Rapports pointeuse</h3>
+                @if (timeClockReports().length) {
+                  <p>{{ timeClockReports().length }} fichier(s) importé(s)</p>
+                  <small>
+                    Dernier import le
+                    {{ formatDate(timeClockReports()[0].importedAt) }}
+                  </small>
+                } @else {
+                  <p>Aucun rapport d’administration pour cette période.</p>
+                }
+              </div>
+              <button type="button" (click)="setView('time-clock')">
+                {{ timeClockReports().length ? 'Consulter' : 'Importer' }}
+              </button>
+            </article>
+
           </section>
 
           @if (calculationStatus()?.run; as run) {
@@ -335,7 +354,7 @@
                       <th>Matricule</th>
                       <th>Employé</th>
                       <th>Heures normales</th>
-                      <th>Absences (jours)</th>
+                      <th>Absences</th>
                       <th>CP (jours)</th>
                       <th>MA (jours)</th>
                       <th>STC (jours)</th>
@@ -360,7 +379,7 @@
                           {{ result.employee.firstName }} {{ result.employee.lastName }}
                         </td>
                         <td>{{ minutesLabel(result.normalMinutes) }}</td>
-                        <td>{{ result.absenceDays }}</td>
+                        <td>{{ minutesLabel(result.absenceMinutes) }}</td>
                         <td>{{ result.paidLeaveDays }}</td>
                         <td>{{ result.sickLeaveDays }}</td>
                         <td>{{ result.stcDays }}</td>
@@ -569,6 +588,112 @@
               <p>Utilisez le QR permanent pour envoyer les premières feuilles.</p>
             </section>
           }
+        }
+
+        @case ('time-clock') {
+          <section class="page-panel">
+            <div>
+              <p class="eyebrow">Heures administration</p>
+              <h2>Rapports pointeuse</h2>
+              <p>
+                Importez un ou plusieurs fichiers Excel. Chaque fichier peut
+                contenir un seul employé ou plusieurs.
+              </p>
+            </div>
+            <label class="button primary">
+              {{ timeClockBusy() ? 'Import en cours...' : 'Importer des rapports' }}
+              <input
+                type="file"
+                accept=".xls,.xlsx"
+                multiple
+                [disabled]="timeClockBusy()"
+                (change)="selectTimeClockFiles($event)"
+              />
+            </label>
+          </section>
+
+          @if (timeClockError()) {
+            <p class="alert">{{ timeClockError() }}</p>
+          }
+
+          <section class="list-toolbar">
+            <label class="search-control">
+              <span>Rechercher</span>
+              <input
+                type="search"
+                placeholder="Fichier ou employé"
+                [ngModel]="timeClockSearch()"
+                (ngModelChange)="timeClockSearch.set($event)"
+              />
+            </label>
+            <span class="filtered-count">
+              {{ filteredTimeClockReports().length }} rapport(s)
+            </span>
+          </section>
+
+          <section class="operational-table-wrap">
+            <table class="operational-table">
+              <thead>
+                <tr>
+                  <th>Rapport</th>
+                  <th>Date d’import</th>
+                  <th>Employés trouvés</th>
+                  <th>État</th>
+                  <th class="actions-column">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (report of filteredTimeClockReports(); track report.id) {
+                  <tr>
+                    <td><strong>{{ report.fileName }}</strong></td>
+                    <td>{{ formatDate(report.importedAt) }}</td>
+                    <td>{{ report.employees.length }}</td>
+                    <td>
+                      <span
+                        class="badge"
+                        [class.success]="
+                          !timeClockReportNeedsReview(report)
+                        "
+                      >
+                        {{
+                          timeClockReportNeedsReview(report)
+                            ? 'À contrôler'
+                            : 'Prêt'
+                        }}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="row-actions">
+                        <button
+                          class="compact-action primary-action"
+                          type="button"
+                          (click)="openTimeClockReport(report)"
+                        >
+                          Consulter
+                        </button>
+                        @if (report.storageUrl) {
+                          <a
+                            class="compact-action"
+                            [href]="report.storageUrl"
+                            target="_blank"
+                            rel="noopener"
+                          >
+                            Fichier source
+                          </a>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="list-empty">
+                      Aucun rapport importé pour cette période.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
         }
 
         @case ('employees') {
@@ -802,7 +927,7 @@
                       <th>Matricule</th>
                       <th>Employé</th>
                       <th>Heures normales</th>
-                      <th>Absences (jours)</th>
+                      <th>Absences</th>
                       <th>CP (jours)</th>
                       <th>MA (jours)</th>
                       <th>STC (jours)</th>
@@ -827,7 +952,7 @@
                           {{ result.employee.firstName }} {{ result.employee.lastName }}
                         </td>
                         <td>{{ minutesLabel(result.normalMinutes) }}</td>
-                        <td>{{ result.absenceDays }}</td>
+                        <td>{{ minutesLabel(result.absenceMinutes) }}</td>
                         <td>{{ result.paidLeaveDays }}</td>
                         <td>{{ result.sickLeaveDays }}</td>
                         <td>{{ result.stcDays }}</td>
@@ -1044,6 +1169,7 @@
                 >
                   <option value="ALL">Tous</option>
                   <option value="TIME_SHEET">Feuilles horaires</option>
+                  <option value="TIME_CLOCK">Rapports pointeuse</option>
                   <option value="EMPLOYEE_LIST">Listes employés</option>
                 </select>
               </label>
@@ -1349,7 +1475,7 @@
         </header>
         <div class="calculation-summary">
           <div><span>Heures normales</span><strong>{{ minutesLabel(result.normalMinutes) }}</strong></div>
-          <div><span>Absences</span><strong>{{ result.absenceDays }} j</strong></div>
+          <div><span>Absences</span><strong>{{ minutesLabel(result.absenceMinutes) }}</strong></div>
           <div><span>Congés payés CP</span><strong>{{ result.paidLeaveDays }} j</strong></div>
           <div><span>Maladie MA</span><strong>{{ result.sickLeaveDays }} j</strong></div>
           <div><span>Fin de contrat STC</span><strong>{{ result.stcDays }} j</strong></div>
@@ -1387,6 +1513,7 @@
               <tr>
                 <th>Date</th>
                 <th>Saisie feuille</th>
+                <th>Administration</th>
                 <th>Journée</th>
                 <th>Durée</th>
                 <th>Feuilles</th>
@@ -1403,6 +1530,13 @@
                       <i class="review-indicator" title="À vérifier"></i>
                     }
                     <strong>{{ dayLabel(day.date) }}</strong>
+                  </td>
+                  <td>
+                    {{
+                      day.administrationMinutes
+                        ? minutesLabel(day.administrationMinutes)
+                        : '—'
+                    }}
                   </td>
                   <td>
                     <div class="calculation-values">
@@ -1466,6 +1600,109 @@
                       }
                     </div>
                   </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  }
+
+  @if (selectedTimeClockReport(); as report) {
+    <div
+      class="modal-backdrop"
+      (click)="selectedTimeClockReport.set(null)"
+    >
+      <section
+        class="calculation-modal time-clock-modal"
+        role="dialog"
+        aria-modal="true"
+        (click)="$event.stopPropagation()"
+      >
+        <header>
+          <div>
+            <p class="eyebrow">Détail du rapport</p>
+            <h2>{{ report.fileName }}</h2>
+            <p>
+              {{ report.employees.length }} employé(s) · importé le
+              {{ formatDate(report.importedAt) }}
+            </p>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            title="Fermer"
+            (click)="selectedTimeClockReport.set(null)"
+          >
+            ×
+          </button>
+        </header>
+        <div class="calculation-detail-wrap">
+          <table class="calculation-detail-table">
+            <thead>
+              <tr>
+                <th>Employé</th>
+                <th>Date</th>
+                <th>Pointages trouvés</th>
+                <th>Durée</th>
+                <th>État</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (entry of report.employees; track entry.id) {
+                @for (day of entry.days; track day.date) {
+                  <tr [class.needs-review]="day.needsReview || !entry.employee">
+                    <td>
+                      <strong>
+                        {{
+                          entry.employee
+                            ? entry.employee.firstName + ' ' + entry.employee.lastName
+                            : entry.sourceFullName
+                        }}
+                      </strong>
+                      @if (!entry.employee) {
+                        <small class="status-detail warning-text">
+                          Non trouvé dans la liste active
+                        </small>
+                      }
+                    </td>
+                    <td><strong>{{ dayLabel(day.date) }}</strong></td>
+                    <td>
+                      {{ day.punches.length ? day.punches.join(' · ') : '—' }}
+                    </td>
+                    <td>
+                      <input
+                        class="duration-input"
+                        type="time"
+                        [value]="minutesInput(day.durationMinutes)"
+                        [disabled]="
+                          savingTimeClockDay() === entry.id + ':' + day.date
+                        "
+                        (blur)="
+                          saveTimeClockDay(
+                            entry.id,
+                            day.date,
+                            day.durationMinutes,
+                            $any($event.target)
+                          )
+                        "
+                      />
+                    </td>
+                    <td>
+                      <span class="badge" [class.success]="!day.needsReview">
+                        {{
+                          day.needsReview
+                            ? 'À contrôler'
+                            : timeClockStateLabel(day.state)
+                        }}
+                      </span>
+                    </td>
+                  </tr>
+                }
+              } @empty {
+                <tr>
+                  <td colspan="5" class="list-empty">Aucune donnée lisible.</td>
                 </tr>
               }
             </tbody>

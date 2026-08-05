@@ -53,6 +53,7 @@ model PayrollCycle {
   completedAt  DateTime?
   resetAt      DateTime?
   scanBatches  ScanBatch[]
+  timeClockReports TimeClockReport[]
   calculationRun CalculationRun?
 
   @@index([status])
@@ -84,6 +85,7 @@ model Employee {
   updatedAt          DateTime           @updatedAt
   listImport         EmployeeListImport @relation(fields: [listImportId], references: [id], onDelete: Cascade)
   extractedRows      ExtractedTimeSheetRow[]
+  timeClockEntries   TimeClockReportEmployee[]
   calculations       EmployeeCalculation[]
 
   @@index([normalizedFullName])
@@ -149,6 +151,37 @@ model Holiday {
   @@index([date])
 }
 
+model TimeClockReport {
+  id          String                    @id @default(uuid())
+  cycleId     String
+  fileName    String
+  mimeType    String
+  storageUrl  String?
+  storageKey  String?
+  checksum    String
+  importedAt  DateTime                  @default(now())
+  cycle       PayrollCycle              @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employees   TimeClockReportEmployee[]
+
+  @@unique([cycleId, checksum])
+  @@index([cycleId, importedAt])
+}
+
+model TimeClockReportEmployee {
+  id                   String          @id @default(uuid())
+  reportId             String
+  employeeId           String?
+  sourceEmployeeNumber String?
+  sourceFullName       String
+  days                 Json
+  requiresReview       Boolean         @default(false)
+  report               TimeClockReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  employee             Employee?       @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@unique([reportId, sourceFullName])
+  @@index([employeeId])
+}
+
 model CalculationRun {
   id           String               @id @default(uuid())
   cycleId      String               @unique
@@ -166,7 +199,7 @@ model EmployeeCalculation {
   runId                  String
   employeeId             String
   normalMinutes          Int            @default(0)
-  absenceDays            Int            @default(0)
+  absenceMinutes         Int            @default(0)
   stcDays                Int            @default(0)
   paidLeaveDays          Int            @default(0)
   sickLeaveDays          Int            @default(0)

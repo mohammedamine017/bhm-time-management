@@ -37,6 +37,7 @@ describe('App', () => {
       'Vue d’ensemble',
       'Employés',
       'Feuilles horaires',
+      'Rapports pointeuse',
       'Jours fériés',
       'Historique des calculs',
       'Documents',
@@ -60,5 +61,29 @@ describe('App', () => {
     fixture.detectChanges();
     expect(element.querySelector('.sidebar')?.classList).not.toContain('open');
     expect(element.querySelector('main h1')?.textContent).toContain('Employés');
+  });
+
+  it('rejects a scan larger than 12 MB before upload', () => {
+    const fixture = TestBed.createComponent(App);
+    const component = fixture.componentInstance as unknown as {
+      addScanFiles: (event: Event) => void;
+      scanFiles: () => File[];
+      scanError: () => string;
+    };
+    const input = {
+      files: [
+        {
+          name: 'grande-photo.jpg',
+          type: 'image/jpeg',
+          size: 12 * 1024 * 1024 + 1,
+        } as File,
+      ],
+      value: 'selected',
+    };
+
+    component.addScanFiles({ target: input } as unknown as Event);
+
+    expect(component.scanFiles()).toEqual([]);
+    expect(component.scanError()).toContain('maximum 12 Mo');
   });
 });

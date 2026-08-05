@@ -34,11 +34,37 @@ describe('CalculationEngineService', () => {
 
     expect(result).toMatchObject({
       normalMinutes: 480,
-      absenceDays: 3,
+      absenceMinutes: 1440,
       overtimeMiniMinutes: 120,
       overtimeMaxiMinutes: 480,
       displacementDays: 0,
     });
+  });
+
+  it('additionne les heures chantier et administration pour la même date', () => {
+    const result = engine.calculate({
+      employeeId: 'employee-1',
+      scannedDays: [scanned('2026-06-22', '4')],
+      administrationDays: [
+        {
+          date: '2026-06-22',
+          punches: ['08:00:00', '12:00:00'],
+          durationMinutes: 240,
+          state: 'WORKED',
+          stateLabel: '',
+          needsReview: false,
+          reportId: 'report-1',
+          fileName: 'pointage.xls',
+          storageUrl: null,
+        },
+      ],
+      holidayDates: new Set(),
+      adjustmentMinutes: 0,
+    });
+
+    expect(result.normalMinutes).toBe(480);
+    expect(result.overtimeMiniMinutes).toBe(0);
+    expect(result.details[0].administrationMinutes).toBe(240);
   });
 
   it('calcule les heures et le deplacement contenus dans une valeur 8D', () => {
@@ -191,7 +217,7 @@ describe('CalculationEngineService', () => {
     });
 
     expect(result.normalMinutes).toBe(0);
-    expect(result.absenceDays).toBe(2);
+    expect(result.absenceMinutes).toBe(960);
     expect(result.overtimeMiniMinutes).toBe(0);
     expect(result.overtimeMaxiMinutes).toBe(0);
   });
@@ -209,7 +235,7 @@ describe('CalculationEngineService', () => {
 
     expect(result.details[0].values).toEqual(['X', '8']);
     expect(result.normalMinutes).toBe(480);
-    expect(result.absenceDays).toBe(0);
+    expect(result.absenceMinutes).toBe(0);
     expect(result.requiresReview).toBe(true);
   });
 
@@ -229,7 +255,7 @@ describe('CalculationEngineService', () => {
 
     expect(result).toMatchObject({
       normalMinutes: 480,
-      absenceDays: 0,
+      absenceMinutes: 0,
       stcDays: 1,
       paidLeaveDays: 1,
       sickLeaveDays: 1,

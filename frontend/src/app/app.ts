@@ -29,11 +29,14 @@ import { Holiday } from './core/holiday.models';
 import { HolidayService } from './core/holiday.service';
 import { ArchivedDocument } from './core/document.models';
 import { DocumentService } from './core/document.service';
+import { TimeClockReport } from './core/time-clock.models';
+import { TimeClockService } from './core/time-clock.service';
 
 type AppView =
   | 'overview'
   | 'employees'
   | 'time-sheets'
+  | 'time-clock'
   | 'holidays'
   | 'calculation-history'
   | 'documents';
@@ -63,7 +66,17 @@ export class App implements OnInit {
   protected readonly scanFiles = signal<File[]>([]);
   protected readonly scanBusy = signal(false);
   protected readonly scanError = signal('');
+  protected readonly timeClockReports = signal<TimeClockReport[]>([]);
+  protected readonly selectedTimeClockReport = signal<TimeClockReport | null>(
+    null,
+  );
+  protected readonly timeClockBusy = signal(false);
+  protected readonly timeClockError = signal('');
+  protected readonly timeClockSearch = signal('');
+  protected readonly savingTimeClockDay = signal('');
   protected readonly scanSent = signal(false);
+  private readonly maxScanFiles = 12;
+  private readonly maxScanFileSize = 12 * 1024 * 1024;
   protected readonly selectedDocument = signal<ScanDocument | null>(null);
   protected readonly retryingDocument = signal('');
   private scanRefreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -133,6 +146,11 @@ export class App implements OnInit {
           label: 'Feuilles horaires',
           helper: 'Feuilles et contrôles',
         },
+        {
+          view: 'time-clock',
+          label: 'Rapports pointeuse',
+          helper: 'Heures administration',
+        },
         { view: 'holidays', label: 'Jours fériés', helper: 'Calendrier' },
       ],
     },
@@ -159,6 +177,7 @@ export class App implements OnInit {
     private readonly calculations: CalculationService,
     private readonly holidayService: HolidayService,
     private readonly documents: DocumentService,
+    private readonly timeClock: TimeClockService,
   ) {}
 
   ngOnInit() {
@@ -170,6 +189,7 @@ export class App implements OnInit {
         this.loadScanBatch();
         this.loadCalculationStatus();
         this.loadHolidays();
+        this.loadTimeClockReports();
       });
     }
   }
@@ -178,6 +198,7 @@ export class App implements OnInit {
     this.activeView.set(view);
     this.mobileMenuOpen.set(false);
     if (view === 'time-sheets') this.loadScanBatch();
+    if (view === 'time-clock') this.loadTimeClockReports();
     if (view === 'holidays') this.loadHolidays();
     if (view === 'calculation-history') this.loadCalculationHistory();
     if (view === 'documents') this.loadArchives();
@@ -208,6 +229,7 @@ export class App implements OnInit {
       this.loadScanBatch();
       this.loadCalculationStatus();
       this.loadHolidays();
+      this.loadTimeClockReports();
     });
   }
 
@@ -276,15 +298,31 @@ export class App implements OnInit {
     const input = event.target as HTMLInputElement;
     const added = Array.from(input.files ?? []);
     input.value = '';
-    const supported = added.filter((file) =>
-      ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'].includes(
-        file.type,
-      ),
+    const supportedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+      'application/pdf',
+    ];
+    const supported = added.filter((file) => supportedTypes.includes(file.type));
+    const accepted = supported.filter(
+      (file) => file.size <= this.maxScanFileSize,
     );
-    this.scanFiles.set([...this.scanFiles(), ...supported].slice(0, 12));
-    this.scanError.set(
-      supported.length === added.length ? '' : 'Certains formats ne sont pas acceptés.',
-    );
+    const selected = [...this.scanFiles(), ...accepted];
+    this.scanFiles.set(selected.slice(0, this.maxScanFiles));
+
+    const messages: string[] = [];
+    if (supported.length !== added.length) {
+      messages.push('Certains formats ne sont pas acceptés.');
+    }
+    if (accepted.length !== supported.length) {
+      messages.push('Chaque document doit faire au maximum 12 Mo.');
+    }
+    if (selected.length > this.maxScanFiles) {
+      messages.push('Maximum 12 documents par envoi.');
+    }
+    this.scanError.set(messages.join(' '));
   }
 
   protected removeScanFile(index: number) {
@@ -304,7 +342,11 @@ export class App implements OnInit {
         this.loadCalculationStatus();
       },
       error: (error) => {
-        this.scanError.set(error.error?.message ?? 'Envoi impossible.');
+        this.scanError.set(
+          error.status === 413
+            ? 'Envoi trop volumineux. Chaque document doit faire au maximum 12 Mo.'
+            : (error.error?.message ?? 'Envoi impossible.'),
+        );
         this.scanBusy.set(false);
       },
     });
@@ -557,6 +599,100 @@ export class App implements OnInit {
     );
   }
 
+  protected selectTimeClockFiles(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (!files.length) return;
+    this.timeClockBusy.set(true);
+    this.timeClockError.set('');
+    this.timeClock.import(files, this.payrollMonth()).subscribe({
+      next: (reports) => {
+        this.timeClockReports.set(reports);
+        this.timeClockBusy.set(false);
+        this.loadCalculationStatus();
+        this.loadArchives();
+      },
+      error: (error) => {
+        this.timeClockError.set(
+          error.error?.message ?? 'Import des rapports impossible.',
+        );
+        this.timeClockBusy.set(false);
+      },
+    });
+  }
+
+  protected filteredTimeClockReports() {
+    const search = this.searchValue(this.timeClockSearch());
+    if (!search) return this.timeClockReports();
+    return this.timeClockReports().filter((report) =>
+      this.searchValue(
+        `${report.fileName} ${report.employees
+          .map((entry) => entry.sourceFullName)
+          .join(' ')}`,
+      ).includes(search),
+    );
+  }
+
+  protected openTimeClockReport(report: TimeClockReport) {
+    this.selectedTimeClockReport.set(report);
+  }
+
+  protected timeClockReportNeedsReview(report: TimeClockReport) {
+    return report.employees.some((entry) => entry.requiresReview);
+  }
+
+  protected timeClockStateLabel(state: string) {
+    if (state === 'ABSENT') return 'Absent';
+    if (state === 'WEEKEND') return 'Week-end';
+    if (state === 'WORKED') return 'Pointé';
+    return 'Sans pointage';
+  }
+
+  protected minutesInput(minutes: number) {
+    return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(
+      minutes % 60,
+    ).padStart(2, '0')}`;
+  }
+
+  protected saveTimeClockDay(
+    entryId: string,
+    date: string,
+    currentMinutes: number,
+    input: HTMLInputElement,
+  ) {
+    const match = input.value.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) {
+      input.value = this.minutesInput(currentMinutes);
+      return;
+    }
+    const minutes = Number(match[1]) * 60 + Number(match[2]);
+    if (minutes === currentMinutes) return;
+    const key = `${entryId}:${date}`;
+    this.savingTimeClockDay.set(key);
+    this.timeClock.updateDay(entryId, date, minutes).subscribe({
+      next: (updatedEntry) => {
+        this.savingTimeClockDay.set('');
+        const replaceEntry = (report: TimeClockReport) => ({
+          ...report,
+          employees: report.employees.map((entry) =>
+            entry.id === updatedEntry.id ? updatedEntry : entry,
+          ),
+        });
+        this.timeClockReports.update((reports) => reports.map(replaceEntry));
+        this.selectedTimeClockReport.update((report) =>
+          report ? replaceEntry(report) : report,
+        );
+        this.loadCalculationStatus();
+      },
+      error: () => {
+        input.value = this.minutesInput(currentMinutes);
+        this.timeClockError.set('Modification de la durée impossible.');
+        this.savingTimeClockDay.set('');
+      },
+    });
+  }
+
   protected loadCycle(afterLoad?: () => void) {
     this.loading.set(true);
     this.cycleError.set('');
@@ -584,6 +720,14 @@ export class App implements OnInit {
   private loadEmployeeHistory() {
     this.employees.history().subscribe({
       next: (history) => this.employeeHistory.set(history),
+    });
+  }
+
+  private loadTimeClockReports() {
+    this.timeClock.list(this.payrollMonth()).subscribe({
+      next: (reports) => this.timeClockReports.set(reports),
+      error: () =>
+        this.timeClockError.set('Rapports pointeuse indisponibles.'),
     });
   }
 
@@ -727,6 +871,7 @@ export class App implements OnInit {
         next: ({ cycle, resetEmployees }) => {
           this.cycle.set(cycle);
           this.scanBatch.set(null);
+          this.timeClockReports.set([]);
           this.calculationStatus.set(null);
           this.selectedDocument.set(null);
           this.selectedCalculation.set(null);
@@ -736,6 +881,7 @@ export class App implements OnInit {
           this.loadEmployees();
           this.loadScanBatch();
           this.loadCalculationStatus();
+          this.loadTimeClockReports();
           this.loadCalculationHistory();
           this.loadHolidays();
           this.loadArchives();
@@ -1014,6 +1160,7 @@ export class App implements OnInit {
 
   protected archiveTypeLabel(type: ArchivedDocument['type']) {
     if (type === 'EMPLOYEE_LIST') return 'Liste employés';
+    if (type === 'TIME_CLOCK') return 'Rapport pointeuse';
     return 'Feuille horaire';
   }
 

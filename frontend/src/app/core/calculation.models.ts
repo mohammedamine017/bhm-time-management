@@ -3,6 +3,7 @@ export interface CalculationDayDetail {
   values: string[];
   dayType: 'WORKDAY' | 'WEEKEND' | 'HOLIDAY';
   workedMinutes: number;
+  administrationMinutes: number;
   normalMinutes: number;
   absenceDay: boolean;
   stcDay: boolean;
@@ -27,7 +28,7 @@ export interface CalculationDayDetail {
 export interface EmployeeCalculation {
   id: string;
   normalMinutes: number;
-  absenceDays: number;
+  absenceMinutes: number;
   stcDays: number;
   paidLeaveDays: number;
   sickLeaveDays: number;
@@ -53,6 +54,7 @@ export interface CalculationStatus {
     scansReady: boolean;
     employeeCount: number;
     scannedRowCount: number;
+    timeClockReportCount: number;
   };
   run: {
     id: string;
@@ -78,7 +80,7 @@ export interface CalculationHistoryItem {
   reviewCount: number;
   totals: {
     normalMinutes: number;
-    absenceDays: number;
+    absenceMinutes: number;
     stcDays: number;
     paidLeaveDays: number;
     sickLeaveDays: number;

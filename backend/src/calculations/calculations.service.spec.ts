@@ -5,6 +5,7 @@ describe('CalculationsService', () => {
     const prisma = {
       employee: { count: jest.fn().mockResolvedValue(6) },
       extractedTimeSheetRow: { count: jest.fn().mockResolvedValue(2) },
+      timeClockReport: { count: jest.fn().mockResolvedValue(3) },
       calculationRun: { findUnique: jest.fn().mockResolvedValue(null) },
     };
     const cycles = {
@@ -26,6 +27,7 @@ describe('CalculationsService', () => {
         scansReady: true,
         employeeCount: 6,
         scannedRowCount: 2,
+        timeClockReportCount: 3,
       },
     });
   });
@@ -51,7 +53,7 @@ describe('CalculationsService', () => {
             results: [
               {
                 normalMinutes: 9600,
-                absenceDays: 1,
+                absenceMinutes: 480,
                 stcDays: 0,
                 paidLeaveDays: 2,
                 sickLeaveDays: 0,
@@ -63,7 +65,7 @@ describe('CalculationsService', () => {
               },
               {
                 normalMinutes: 9120,
-                absenceDays: 2,
+                absenceMinutes: 960,
                 stcDays: 1,
                 paidLeaveDays: 0,
                 sickLeaveDays: 3,
@@ -94,7 +96,7 @@ describe('CalculationsService', () => {
         archivedAt: resetAt,
         totals: {
           normalMinutes: 18720,
-          absenceDays: 3,
+          absenceMinutes: 1440,
           stcDays: 1,
           paidLeaveDays: 2,
           sickLeaveDays: 3,

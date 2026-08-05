@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { parseTimeSheetDayValue } from '../common/time-sheet-day-value';
 import {
   CalculationDayDetail,
+  AdministrationCalculationDay,
   EmployeeCalculationInput,
   EmployeeCalculationOutput,
 } from './calculation.types';
@@ -18,9 +19,19 @@ export class CalculationEngineService {
       current.push(day);
       scannedByDate.set(day.date, current);
     }
+    const administrationByDate = new Map<
+      string,
+      AdministrationCalculationDay[]
+    >();
+    for (const day of input.administrationDays ?? []) {
+      const current = administrationByDate.get(day.date) ?? [];
+      current.push(day);
+      administrationByDate.set(day.date, current);
+    }
     const dates = [...new Set([
       ...(input.cycleDates ?? []),
       ...scannedByDate.keys(),
+      ...administrationByDate.keys(),
     ])].sort();
 
     const details = dates
@@ -28,13 +39,15 @@ export class CalculationEngineService {
         this.calculateDay(
           date,
           scannedByDate.get(date) ?? [],
+          administrationByDate.get(date) ?? [],
           input.holidayDates,
         ),
       );
     const totals = details.reduce(
       (result, day) => ({
         normalMinutes: result.normalMinutes + day.normalMinutes,
-        absenceDays: result.absenceDays + (day.absenceDay ? 1 : 0),
+        absenceMinutes:
+          result.absenceMinutes + (day.absenceDay ? 480 : 0),
         stcDays: result.stcDays + (day.stcDay ? 1 : 0),
         paidLeaveDays:
           result.paidLeaveDays + (day.paidLeaveDay ? 1 : 0),
@@ -49,7 +62,7 @@ export class CalculationEngineService {
       }),
       {
         normalMinutes: 0,
-        absenceDays: 0,
+        absenceMinutes: 0,
         stcDays: 0,
         paidLeaveDays: 0,
         sickLeaveDays: 0,
@@ -84,6 +97,7 @@ export class CalculationEngineService {
   private calculateDay(
     date: string,
     scannedDays: EmployeeCalculationInput['scannedDays'],
+    administrationDays: AdministrationCalculationDay[],
     holidayDates: Set<string>,
   ): CalculationDayDetail {
     const parsedValues = scannedDays.map((day) =>
@@ -95,7 +109,9 @@ export class CalculationEngineService {
     const values = [...new Set(rawValues)];
     const warnings: string[] = [];
     let workedMinutes = 0;
-    let absence = values.some((value) => ['A', '0', 'X'].includes(value));
+    let absence =
+      values.some((value) => ['A', '0', 'X'].includes(value)) ||
+      administrationDays.some((day) => day.state === 'ABSENT');
     const hasStc = values.includes('STC');
     const hasPaidLeave = values.includes('CP');
     const hasSickLeave = values.includes('MA');
@@ -109,6 +125,11 @@ export class CalculationEngineService {
         workedMinutes += Math.round(parsedValue.hours * 60);
       }
     }
+    const administrationMinutes = administrationDays.reduce(
+      (total, day) => total + day.durationMinutes,
+      0,
+    );
+    workedMinutes += administrationMinutes;
     if (hasRecovery) {
       if (workedMinutes > 0) {
         warnings.push(`${date}: récupération et présence simultanées`);
@@ -154,7 +175,9 @@ export class CalculationEngineService {
       overtimeMiniMinutes = Math.max(0, workedMinutes - 480);
     }
 
-    const sourceRequiresReview = scannedDays.some((day) => day.needsReview);
+    const sourceRequiresReview =
+      scannedDays.some((day) => day.needsReview) ||
+      administrationDays.some((day) => day.needsReview);
     const requiresReview = sourceRequiresReview || warnings.length > 0;
 
     return {
@@ -162,6 +185,7 @@ export class CalculationEngineService {
       values,
       dayType,
       workedMinutes,
+      administrationMinutes,
       normalMinutes,
       absenceDay: absence && countAbsenceRubric,
       stcDay: hasStc && countAbsenceRubric,

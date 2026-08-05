@@ -8,7 +8,10 @@ import ExcelJS from 'exceljs';
 import { CyclesService } from '../cycles/cycles.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CalculationEngineService } from './calculation-engine.service';
-import type { ScannedCalculationDay } from './calculation.types';
+import type {
+  AdministrationCalculationDay,
+  ScannedCalculationDay,
+} from './calculation.types';
 
 type CalculationWithEmployee = Prisma.EmployeeCalculationGetPayload<{
   include: { employee: true };
@@ -24,13 +27,16 @@ export class CalculationsService {
 
   async status(month?: string) {
     const cycle = await this.cycles.getOrCreateActive(month);
-    const [employeeCount, scannedRows, run] =
+    const [employeeCount, scannedRows, timeClockReports, run] =
       await Promise.all([
         this.prisma.employee.count({
           where: { listImport: { status: ImportStatus.ACTIVE } },
         }),
         this.prisma.extractedTimeSheetRow.count({
           where: { document: { batch: { cycleId: cycle.id } } },
+        }),
+        this.prisma.timeClockReport.count({
+          where: { cycleId: cycle.id },
         }),
         this.prisma.calculationRun.findUnique({
           where: { cycleId: cycle.id },
@@ -48,6 +54,7 @@ export class CalculationsService {
       scansReady: scannedRows > 0,
       employeeCount,
       scannedRowCount: scannedRows,
+      timeClockReportCount: timeClockReports,
     };
 
     return {
@@ -91,7 +98,7 @@ export class CalculationsService {
         results: {
           select: {
             normalMinutes: true,
-            absenceDays: true,
+            absenceMinutes: true,
             stcDays: true,
             paidLeaveDays: true,
             sickLeaveDays: true,
@@ -118,7 +125,7 @@ export class CalculationsService {
       totals: run.results.reduce(
         (totals, result) => ({
           normalMinutes: totals.normalMinutes + result.normalMinutes,
-          absenceDays: totals.absenceDays + result.absenceDays,
+          absenceMinutes: totals.absenceMinutes + result.absenceMinutes,
           stcDays: totals.stcDays + result.stcDays,
           paidLeaveDays: totals.paidLeaveDays + result.paidLeaveDays,
           sickLeaveDays: totals.sickLeaveDays + result.sickLeaveDays,
@@ -132,7 +139,7 @@ export class CalculationsService {
         }),
         {
           normalMinutes: 0,
-          absenceDays: 0,
+          absenceMinutes: 0,
           stcDays: 0,
           paidLeaveDays: 0,
           sickLeaveDays: 0,
@@ -191,7 +198,7 @@ export class CalculationsService {
       { header: 'Prénom', key: 'firstName', width: 22 },
       { header: 'Nom', key: 'lastName', width: 22 },
       { header: 'Heures normales', key: 'normal', width: 18 },
-      { header: 'Absences (jours)', key: 'absence', width: 18 },
+      { header: 'Absences (heures)', key: 'absence', width: 20 },
       { header: 'Congés payés CP (jours)', key: 'paidLeave', width: 22 },
       { header: 'Maladie MA (jours)', key: 'sickLeave', width: 20 },
       { header: 'Fin de contrat STC (jours)', key: 'stc', width: 24 },
@@ -207,7 +214,7 @@ export class CalculationsService {
         firstName: result.employee.firstName,
         lastName: result.employee.lastName,
         normal: this.decimalHours(result.normalMinutes),
-        absence: result.absenceDays,
+        absence: this.decimalHours(result.absenceMinutes),
         paidLeave: result.paidLeaveDays,
         sickLeave: result.sickLeaveDays,
         stc: result.stcDays,
@@ -319,7 +326,7 @@ export class CalculationsService {
     const cycle = await this.prisma.payrollCycle.findUniqueOrThrow({
       where: { id: cycleId },
     });
-    const [employees, rows, holidays] = await Promise.all([
+    const [employees, rows, timeClockEntries, holidays] = await Promise.all([
       this.prisma.employee.findMany({
         where: { listImport: { status: ImportStatus.ACTIVE } },
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
@@ -332,12 +339,23 @@ export class CalculationsService {
         include: { document: true },
         orderBy: { document: { uploadedAt: 'desc' } },
       }),
+      this.prisma.timeClockReportEmployee.findMany({
+        where: {
+          employeeId: { not: null },
+          report: { cycleId },
+        },
+        include: { report: true },
+      }),
       this.prisma.holiday.findMany({
         where: { date: { gte: cycle.startDate, lte: cycle.endDate } },
       }),
     ]);
 
     const scannedByEmployee = new Map<string, ScannedCalculationDay[]>();
+    const administrationByEmployee = new Map<
+      string,
+      AdministrationCalculationDay[]
+    >();
     const seenEmployeeDocuments = new Set<string>();
     const holidayDates = new Set(
       holidays.map((holiday) => this.isoDate(holiday.date)),
@@ -362,6 +380,23 @@ export class CalculationsService {
       }
       scannedByEmployee.set(row.employeeId, employeeDays);
     }
+    for (const entry of timeClockEntries) {
+      if (!entry.employeeId) continue;
+      const employeeDays =
+        administrationByEmployee.get(entry.employeeId) ?? [];
+      for (const day of this.timeClockDays(entry.days)) {
+        if (day.date < this.isoDate(cycle.startDate)) continue;
+        if (day.date > this.isoDate(cycle.endDate)) continue;
+        employeeDays.push({
+          ...day,
+          reportId: entry.reportId,
+          fileName: entry.report.fileName,
+          storageUrl: entry.report.storageUrl,
+          needsReview: day.needsReview || entry.requiresReview,
+        });
+      }
+      administrationByEmployee.set(entry.employeeId, employeeDays);
+    }
 
     const openDays = this.countOpenDays(
       cycle.startDate,
@@ -370,13 +405,17 @@ export class CalculationsService {
     );
     const adjustmentMinutes = (22 - openDays) * 480;
     const cycleDates = this.listDates(cycle.startDate, cycle.endDate);
-    const extractedEmployees = employees.filter((employee) =>
-      scannedByEmployee.has(employee.id),
+    const extractedEmployees = employees.filter(
+      (employee) =>
+        scannedByEmployee.has(employee.id) ||
+        administrationByEmployee.has(employee.id),
     );
     const results = extractedEmployees.map((employee) =>
       this.engine.calculate({
         employeeId: employee.id,
         scannedDays: scannedByEmployee.get(employee.id) ?? [],
+        administrationDays:
+          administrationByEmployee.get(employee.id) ?? [],
         holidayDates,
         adjustmentMinutes,
         cycleDates,
@@ -399,7 +438,7 @@ export class CalculationsService {
           runId: run.id,
           employeeId: result.employeeId,
           normalMinutes: result.normalMinutes,
-          absenceDays: result.absenceDays,
+          absenceMinutes: result.absenceMinutes,
           stcDays: result.stcDays,
           paidLeaveDays: result.paidLeaveDays,
           sickLeaveDays: result.sickLeaveDays,
@@ -420,6 +459,18 @@ export class CalculationsService {
     return value as {
       date: string;
       value: string;
+      needsReview: boolean;
+    }[];
+  }
+
+  private timeClockDays(value: unknown) {
+    if (!Array.isArray(value)) return [];
+    return value as {
+      date: string;
+      punches: string[];
+      durationMinutes: number;
+      state: 'WORKED' | 'ABSENT' | 'WEEKEND' | 'EMPTY';
+      stateLabel: string;
       needsReview: boolean;
     }[];
   }

@@ -901,6 +901,28 @@ th {
   box-shadow: 0 24px 70px rgb(15 31 50 / 18%);
 }
 
+.time-clock-modal .calculation-detail-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+.duration-input {
+  width: 88px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+  padding: 5px 7px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+}
+
+.duration-input:focus {
+  border-color: var(--primary);
+  outline: 2px solid rgb(20 86 160 / 14%);
+}
+
 .calculation-modal > header {
   display: flex;
   align-items: center;
