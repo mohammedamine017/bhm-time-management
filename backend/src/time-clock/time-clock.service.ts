@@ -7,7 +7,10 @@ import { CalculationsService } from '../calculations/calculations.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TimeClockFilesService } from './time-clock-files.service';
 import { TimeClockParserService } from './time-clock-parser.service';
-import type { UploadedTimeClockFile } from './time-clock.types';
+import type {
+  ParsedTimeClockEmployee,
+  UploadedTimeClockFile,
+} from './time-clock.types';
 
 @Injectable()
 export class TimeClockService {
@@ -59,6 +62,17 @@ export class TimeClockService {
       );
     }
 
+    // Premier passage: tout valider avant d’écrire, pour ne jamais laisser un
+    // import partiel ni un employé pointeuse créé pour un rapport refusé.
+    const periodStart = TimeClockService.isoDate(cycle.startDate);
+    const periodEnd = TimeClockService.isoDate(cycle.endDate);
+    const accepted: {
+      file: UploadedTimeClockFile;
+      checksum: string;
+      parsed: ParsedTimeClockEmployee[];
+    }[] = [];
+    const seenChecksums = new Set<string>();
+
     for (const file of files) {
       if (!/\.xlsx?$/i.test(file.originalname)) {
         throw new BadRequestException(
@@ -66,12 +80,24 @@ export class TimeClockService {
         );
       }
       const checksum = createHash('sha256').update(file.buffer).digest('hex');
+      if (seenChecksums.has(checksum)) continue;
       const duplicate = await this.prisma.timeClockReport.findUnique({
         where: { cycleId_checksum: { cycleId: cycle.id, checksum } },
       });
       if (duplicate) continue;
 
       const parsed = this.parser.parse(file.buffer);
+      this.requirePeriodOverlap(
+        file.originalname,
+        parsed,
+        periodStart,
+        periodEnd,
+      );
+      seenChecksums.add(checksum);
+      accepted.push({ file, checksum, parsed });
+    }
+
+    for (const { file, checksum, parsed } of accepted) {
       const stored = await this.files.store(file);
       const resolvedEntries = [];
       for (const entry of parsed) {
@@ -118,6 +144,39 @@ export class TimeClockService {
       });
     }
     return this.list(cycle.payrollMonth);
+  }
+
+  private requirePeriodOverlap(
+    fileName: string,
+    parsed: ParsedTimeClockEmployee[],
+    periodStart: string,
+    periodEnd: string,
+  ) {
+    const dates = parsed
+      .flatMap((employee) => employee.days.map((day) => day.date))
+      .sort();
+    if (!dates.length) {
+      throw new BadRequestException(
+        `${fileName} : aucune date lisible dans ce rapport.`,
+      );
+    }
+    const covered = dates.some(
+      (date) => date >= periodStart && date <= periodEnd,
+    );
+    if (covered) return;
+
+    throw new BadRequestException(
+      `${fileName} : ce rapport couvre du ${TimeClockService.frenchDate(dates[0])} au ${TimeClockService.frenchDate(dates[dates.length - 1])}, en dehors de la période du ${TimeClockService.frenchDate(periodStart)} au ${TimeClockService.frenchDate(periodEnd)}.`,
+    );
+  }
+
+  private static isoDate(date: Date) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  private static frenchDate(isoDate: string) {
+    const [year, month, day] = isoDate.split('-');
+    return `${day}/${month}/${year}`;
   }
 
   async updateDay(entryId: string, date: string, durationMinutes: number) {

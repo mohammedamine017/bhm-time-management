@@ -67,6 +67,32 @@ describe('CalculationEngineService', () => {
     expect(result.details[0].administrationMinutes).toBe(240);
   });
 
+  it('compte huit heures d’absence pour une journée pointée absente', () => {
+    const result = engine.calculate({
+      employeeId: 'employee-1',
+      scannedDays: [],
+      administrationDays: [
+        {
+          date: '2026-06-22',
+          punches: [],
+          durationMinutes: 0,
+          state: 'ABSENT',
+          stateLabel: 'Absent(e)',
+          needsReview: false,
+          reportId: 'report-1',
+          fileName: 'pointage.xls',
+          storageUrl: null,
+        },
+      ],
+      holidayDates: new Set(),
+      adjustmentMinutes: 0,
+    });
+
+    expect(result.absenceMinutes).toBe(480);
+    expect(result.normalMinutes).toBe(0);
+    expect(result.details[0].absenceDay).toBe(true);
+  });
+
   it('calcule les heures et le deplacement contenus dans une valeur 8D', () => {
     const result = engine.calculate({
       employeeId: 'employee-1',

@@ -398,7 +398,10 @@ export class CalculationsService {
           needsReview: day.needsReview || entry.requiresReview,
         });
       }
-      administrationByEmployee.set(entry.employeeId, employeeDays);
+      // Un rapport hors période ne doit pas produire une ligne de résultat vide.
+      if (employeeDays.length) {
+        administrationByEmployee.set(entry.employeeId, employeeDays);
+      }
     }
 
     const openDays = this.countOpenDays(
