@@ -29,7 +29,10 @@ import { Holiday } from './core/holiday.models';
 import { HolidayService } from './core/holiday.service';
 import { ArchivedDocument } from './core/document.models';
 import { DocumentService } from './core/document.service';
-import { TimeClockReport } from './core/time-clock.models';
+import {
+  TimeClockReport,
+  TimeClockReportEmployee,
+} from './core/time-clock.models';
 import { TimeClockService } from './core/time-clock.service';
 
 type AppView =
@@ -640,6 +643,30 @@ export class App implements OnInit {
 
   protected timeClockReportNeedsReview(report: TimeClockReport) {
     return report.employees.some((entry) => entry.requiresReview);
+  }
+
+  protected timeClockEmployeeName(entry: TimeClockReportEmployee) {
+    if (!entry.employee) return entry.sourceFullName;
+    return `${entry.employee.firstName} ${entry.employee.lastName}`.trim();
+  }
+
+  // Un rapport contient normalement un seul employé, mais la liste reste
+  // tolérante si la RH importe un fichier groupé.
+  protected timeClockReportEmployeeLabel(report: TimeClockReport) {
+    const names = report.employees.map((entry) =>
+      this.timeClockEmployeeName(entry),
+    );
+    if (!names.length) return 'Aucun employé';
+    return names.length === 1 ? names[0] : `${names[0]} +${names.length - 1}`;
+  }
+
+  protected timeClockReportTotalMinutes(report: TimeClockReport) {
+    return report.employees.reduce(
+      (total, entry) =>
+        total +
+        entry.days.reduce((dayTotal, day) => dayTotal + day.durationMinutes, 0),
+      0,
+    );
   }
 
   protected timeClockStateLabel(state: string) {

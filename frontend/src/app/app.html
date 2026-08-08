@@ -637,7 +637,8 @@
                 <tr>
                   <th>Rapport</th>
                   <th>Date d’import</th>
-                  <th>Employés trouvés</th>
+                  <th>Employé</th>
+                  <th>Total heures</th>
                   <th>État</th>
                   <th class="actions-column">Actions</th>
                 </tr>
@@ -647,7 +648,14 @@
                   <tr>
                     <td><strong>{{ report.fileName }}</strong></td>
                     <td>{{ formatDate(report.importedAt) }}</td>
-                    <td>{{ report.employees.length }}</td>
+                    <td>
+                      <strong>{{ timeClockReportEmployeeLabel(report) }}</strong>
+                    </td>
+                    <td>
+                      <strong>
+                        {{ minutesLabel(timeClockReportTotalMinutes(report)) }}
+                      </strong>
+                    </td>
                     <td>
                       <span
                         class="badge"
@@ -686,7 +694,7 @@
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="5" class="list-empty">
+                    <td colspan="6" class="list-empty">
                       Aucun rapport importé pour cette période.
                     </td>
                   </tr>
@@ -1625,8 +1633,9 @@
             <p class="eyebrow">Détail du rapport</p>
             <h2>{{ report.fileName }}</h2>
             <p>
-              {{ report.employees.length }} employé(s) · importé le
-              {{ formatDate(report.importedAt) }}
+              {{ timeClockReportEmployeeLabel(report) }} ·
+              {{ minutesLabel(timeClockReportTotalMinutes(report)) }} au total ·
+              importé le {{ formatDate(report.importedAt) }}
             </p>
           </div>
           <button
