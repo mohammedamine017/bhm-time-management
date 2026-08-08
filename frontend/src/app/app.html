@@ -1669,7 +1669,10 @@
                     <td>
                       <input
                         class="duration-input"
-                        type="time"
+                        type="text"
+                        inputmode="numeric"
+                        pattern="[0-9]{1,2}:[0-9]{2}"
+                        placeholder="HH:MM"
                         [value]="minutesInput(day.durationMinutes)"
                         [disabled]="
                           savingTimeClockDay() === entry.id + ':' + day.date

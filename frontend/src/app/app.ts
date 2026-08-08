@@ -662,7 +662,11 @@ export class App implements OnInit {
     input: HTMLInputElement,
   ) {
     const match = input.value.match(/^(\d{1,2}):(\d{2})$/);
-    if (!match) {
+    if (
+      !match ||
+      Number(match[1]) > 23 ||
+      Number(match[2]) > 59
+    ) {
       input.value = this.minutesInput(currentMinutes);
       return;
     }
