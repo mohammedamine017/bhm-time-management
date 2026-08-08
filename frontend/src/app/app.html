@@ -1652,7 +1652,7 @@
             <tbody>
               @for (entry of report.employees; track entry.id) {
                 @for (day of entry.days; track day.date) {
-                  <tr [class.needs-review]="day.needsReview || !entry.employee">
+                  <tr [class.needs-review]="day.needsReview">
                     <td>
                       <strong>
                         {{
@@ -1661,11 +1661,6 @@
                             : entry.sourceFullName
                         }}
                       </strong>
-                      @if (!entry.employee) {
-                        <small class="status-detail warning-text">
-                          Non trouvé dans la liste active
-                        </small>
-                      }
                     </td>
                     <td><strong>{{ dayLabel(day.date) }}</strong></td>
                     <td>

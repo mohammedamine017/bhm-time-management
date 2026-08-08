@@ -30,7 +30,10 @@ export class CalculationsService {
     const [employeeCount, scannedRows, timeClockReports, run] =
       await Promise.all([
         this.prisma.employee.count({
-          where: { listImport: { status: ImportStatus.ACTIVE } },
+          where: {
+            isExternal: false,
+            listImport: { status: ImportStatus.ACTIVE },
+          },
         }),
         this.prisma.extractedTimeSheetRow.count({
           where: { document: { batch: { cycleId: cycle.id } } },

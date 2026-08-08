@@ -38,14 +38,18 @@ export class TimeClockService {
       throw new BadRequestException('Sélectionnez au moins un rapport Excel.');
     }
     const cycle = await this.cycles.getOrCreateActive(month);
-    const employees = await this.prisma.employee.findMany({
-      where: { listImport: { status: ImportStatus.ACTIVE } },
+    const activeImport = await this.prisma.employeeListImport.findFirst({
+      where: { status: ImportStatus.ACTIVE },
+      orderBy: { importedAt: 'desc' },
     });
-    if (!employees.length) {
+    if (!activeImport) {
       throw new BadRequestException(
         'Importez d’abord la liste active des employés.',
       );
     }
+    const employees = await this.prisma.employee.findMany({
+      where: { listImportId: activeImport.id },
+    });
     const employeeByName = new Map<string, (typeof employees)[number]>();
     for (const employee of employees) {
       employeeByName.set(employee.normalizedFullName, employee);
@@ -69,6 +73,29 @@ export class TimeClockService {
 
       const parsed = this.parser.parse(file.buffer);
       const stored = await this.files.store(file);
+      const resolvedEntries = [];
+      for (const entry of parsed) {
+        const normalizedName = normalizePersonName(entry.sourceFullName);
+        let employee = employeeByName.get(normalizedName);
+        if (!employee) {
+          employee = await this.prisma.employee.create({
+            data: {
+              matricule: `PNT-${createHash('sha1')
+                .update(normalizedName)
+                .digest('hex')
+                .slice(0, 10)
+                .toUpperCase()}`,
+              firstName: entry.sourceFullName.trim(),
+              lastName: '',
+              normalizedFullName: normalizedName,
+              isExternal: true,
+              listImportId: activeImport.id,
+            },
+          });
+          employeeByName.set(normalizedName, employee);
+        }
+        resolvedEntries.push({ entry, employee });
+      }
       await this.prisma.timeClockReport.create({
         data: {
           cycleId: cycle.id,
@@ -77,16 +104,13 @@ export class TimeClockService {
           checksum,
           ...stored,
           employees: {
-            create: parsed.map((entry) => {
-              const employee = employeeByName.get(
-                normalizePersonName(entry.sourceFullName),
-              );
+            create: resolvedEntries.map(({ entry, employee }) => {
               return {
-                employeeId: employee?.id,
+                employeeId: employee.id,
                 sourceEmployeeNumber: entry.sourceEmployeeNumber,
                 sourceFullName: entry.sourceFullName,
                 days: entry.days as unknown as Prisma.InputJsonValue,
-                requiresReview: entry.requiresReview || !employee,
+                requiresReview: entry.requiresReview,
               };
             }),
           },
@@ -123,7 +147,7 @@ export class TimeClockService {
       where: { id: entryId },
       data: {
         days: updatedDays as Prisma.InputJsonValue,
-        requiresReview: requiresReview || !entry.employeeId,
+        requiresReview,
       },
       include: { employee: true },
     });

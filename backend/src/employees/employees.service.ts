@@ -27,7 +27,12 @@ export class EmployeesService {
   async active() {
     return this.prisma.employeeListImport.findFirst({
       where: { status: ImportStatus.ACTIVE },
-      include: { employees: { orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] } },
+      include: {
+        employees: {
+          where: { isExternal: false },
+          orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+        },
+      },
       orderBy: { importedAt: 'desc' },
     });
   }
@@ -50,7 +55,10 @@ export class EmployeesService {
     this.requireFile(file);
     const employees = await this.parser.parse(file.buffer);
     const current = await this.prisma.employee.findMany({
-      where: { listImport: { status: ImportStatus.ACTIVE } },
+      where: {
+        isExternal: false,
+        listImport: { status: ImportStatus.ACTIVE },
+      },
       select: { matricule: true, firstName: true, lastName: true },
     });
     const currentByMatricule = new Map(

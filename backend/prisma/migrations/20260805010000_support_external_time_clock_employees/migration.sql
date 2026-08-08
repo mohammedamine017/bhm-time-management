@@ -1,0 +1,2 @@
+ALTER TABLE "Employee"
+ADD COLUMN "isExternal" BOOLEAN NOT NULL DEFAULT false;
