@@ -82,6 +82,7 @@ export class App implements OnInit {
   private readonly maxScanFileSize = 12 * 1024 * 1024;
   protected readonly selectedDocument = signal<ScanDocument | null>(null);
   protected readonly retryingDocument = signal('');
+  protected readonly deletingDocument = signal('');
   private scanRefreshTimer: ReturnType<typeof setTimeout> | null = null;
   private qrRefreshTimer: ReturnType<typeof setTimeout> | null = null;
   private qrKnownDocumentIds = new Set<string>();
@@ -439,6 +440,34 @@ export class App implements OnInit {
           error.error?.message ?? 'La relance de cette feuille a échoué.',
         );
         this.retryingDocument.set('');
+      },
+    });
+  }
+
+  protected deleteDocument(document: ScanDocument) {
+    if (this.deletingDocument()) return;
+    if (
+      !window.confirm(
+        `Supprimer la feuille ${document.fileName} et les lignes qui en proviennent ?`,
+      )
+    ) {
+      return;
+    }
+    this.deletingDocument.set(document.id);
+    this.scanError.set('');
+    this.scans.deleteDocument(document.id).subscribe({
+      next: () => {
+        this.deletingDocument.set('');
+        if (this.selectedDocument()?.id === document.id) {
+          this.closeExtraction();
+        }
+        this.loadScanBatch();
+      },
+      error: (error) => {
+        this.scanError.set(
+          error.error?.message ?? 'Suppression de la feuille impossible.',
+        );
+        this.deletingDocument.set('');
       },
     });
   }

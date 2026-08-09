@@ -174,6 +174,43 @@ export class ScansService implements OnApplicationBootstrap {
     return updated;
   }
 
+  async deleteDocument(documentId: string) {
+    const document = await this.prisma.scanDocument.findUnique({
+      where: { id: documentId },
+      include: { batch: true },
+    });
+    if (!document) throw new NotFoundException('Feuille introuvable.');
+    if (document.status === ScanDocumentStatus.PROCESSING) {
+      throw new BadRequestException(
+        'Cette feuille est en cours de lecture: réessayez une fois la lecture terminée.',
+      );
+    }
+
+    // Les lignes extraites suivent la feuille (cascade). Le lot vide disparaît
+    // avec elle pour ne pas fausser le nombre d'envois.
+    await this.prisma.scanDocument.delete({ where: { id: documentId } });
+    try {
+      await this.storage.remove(document);
+    } catch (error) {
+      // La feuille est déjà supprimée pour l'utilisateur: un fichier stocké
+      // resté en place ne doit pas faire échouer l'opération.
+      this.logger.error(
+        `Fichier ${document.storageKey} non supprimé: ${this.errorMessage(error)}`,
+      );
+    }
+    const remaining = await this.prisma.scanDocument.count({
+      where: { batchId: document.batchId },
+    });
+    if (remaining) {
+      await this.refreshBatch(document.batchId, document.batch.cycleId);
+    } else {
+      await this.prisma.scanBatch.delete({ where: { id: document.batchId } });
+      await this.calculations.recalculateIfExists(document.batch.cycleId);
+    }
+
+    return { deleted: true };
+  }
+
   private async resumePendingDocuments() {
     try {
       await this.prisma.scanDocument.updateMany({

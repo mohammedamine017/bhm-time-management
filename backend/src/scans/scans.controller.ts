@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Header,
   HttpCode,
@@ -61,5 +62,10 @@ export class ScansController {
   @HttpCode(HttpStatus.ACCEPTED)
   retry(@Param('documentId') documentId: string) {
     return this.scans.retryDocument(documentId);
+  }
+
+  @Delete('documents/:documentId')
+  remove(@Param('documentId') documentId: string) {
+    return this.scans.deleteDocument(documentId);
   }
 }

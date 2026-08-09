@@ -225,6 +225,73 @@ describe('ScansService', () => {
     );
   });
 
+  it('deletes a sheet, its stored file and the emptied batch', async () => {
+    const document = {
+      id: 'document-1',
+      batchId: 'batch-1',
+      status: 'EXTRACTED',
+      mimeType: 'image/jpeg',
+      storageUrl: 'https://res.cloudinary.com/feuille.jpg',
+      storageKey: 'bhm-v2/time-sheets/feuille',
+      batch: { cycleId: 'cycle-1' },
+    };
+    const deleteDocument = jest.fn().mockResolvedValue(document);
+    const deleteBatch = jest.fn().mockResolvedValue({});
+    const remove = jest.fn().mockResolvedValue(undefined);
+    const recalculateIfExists = jest.fn().mockResolvedValue(undefined);
+    const prisma = {
+      scanDocument: {
+        findUnique: jest.fn().mockResolvedValue(document),
+        delete: deleteDocument,
+        count: jest.fn().mockResolvedValue(0),
+      },
+      scanBatch: { delete: deleteBatch },
+    };
+    const service = new ScansService(
+      prisma as never,
+      {} as never,
+      { remove } as never,
+      {} as never,
+      { recalculateIfExists } as never,
+    );
+
+    await expect(service.deleteDocument('document-1')).resolves.toEqual({
+      deleted: true,
+    });
+    expect(deleteDocument).toHaveBeenCalledWith({
+      where: { id: 'document-1' },
+    });
+    expect(remove).toHaveBeenCalledWith(document);
+    expect(deleteBatch).toHaveBeenCalledWith({ where: { id: 'batch-1' } });
+    expect(recalculateIfExists).toHaveBeenCalledWith('cycle-1');
+  });
+
+  it('refuses to delete a sheet while it is being read', async () => {
+    const prisma = {
+      scanDocument: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'document-1',
+          batchId: 'batch-1',
+          status: 'PROCESSING',
+          batch: { cycleId: 'cycle-1' },
+        }),
+        delete: jest.fn(),
+      },
+    };
+    const service = new ScansService(
+      prisma as never,
+      {} as never,
+      { remove: jest.fn() } as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(service.deleteDocument('document-1')).rejects.toThrow(
+      'en cours de lecture',
+    );
+    expect(prisma.scanDocument.delete).not.toHaveBeenCalled();
+  });
+
   it('validates an edited day and recalculates the row state', async () => {
     const update = jest.fn().mockImplementation(async ({ data }) => ({
       id: 'row-1',

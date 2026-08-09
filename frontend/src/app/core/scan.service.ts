@@ -40,4 +40,10 @@ export class ScanService {
       {},
     );
   }
+
+  deleteDocument(documentId: string) {
+    return this.http.delete<{ deleted: boolean }>(
+      `${this.apiUrl}/scans/documents/${documentId}`,
+    );
+  }
 }

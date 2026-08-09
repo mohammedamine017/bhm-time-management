@@ -569,6 +569,18 @@
                               Voir la feuille
                             </a>
                           }
+                          <button
+                            class="compact-action danger"
+                            type="button"
+                            [disabled]="!!deletingDocument()"
+                            (click)="deleteDocument(document)"
+                          >
+                            {{
+                              deletingDocument() === document.id
+                                ? 'Suppression...'
+                                : 'Supprimer'
+                            }}
+                          </button>
                         </div>
                       </td>
                     </tr>

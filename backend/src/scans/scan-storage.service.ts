@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary } from 'cloudinary';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 
 interface ScanFile {
@@ -52,6 +52,32 @@ export class ScanStorageService {
     const storedName = `${Date.now()}-${crypto.randomUUID()}${extname(file.originalname)}`;
     await writeFile(join(directory, storedName), file.buffer);
     return { storageUrl: null, storageKey: `${folder}/${storedName}` };
+  }
+
+  // Une feuille supprimée ne doit rien laisser derrière elle: l'URL distante
+  // distingue un fichier hébergé d'un fichier écrit sur le disque.
+  async remove(file: StoredScan) {
+    if (!file.storageKey) return;
+
+    if (file.storageUrl) {
+      const cloudName = this.config.get<string>('CLOUDINARY_CLOUD_NAME');
+      const apiKey = this.config.get<string>('CLOUDINARY_API_KEY');
+      const apiSecret = this.config.get<string>('CLOUDINARY_API_SECRET');
+      if (!cloudName || !apiKey || !apiSecret) return;
+
+      cloudinary.config({
+        cloud_name: cloudName,
+        api_key: apiKey,
+        api_secret: apiSecret,
+      });
+      await cloudinary.uploader.destroy(file.storageKey, {
+        resource_type: file.mimeType.startsWith('image/') ? 'image' : 'raw',
+        invalidate: true,
+      });
+      return;
+    }
+
+    await rm(join(process.cwd(), 'uploads', file.storageKey), { force: true });
   }
 
   async read(file: StoredScan): Promise<ScanFile> {
