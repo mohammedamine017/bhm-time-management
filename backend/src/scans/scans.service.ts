@@ -258,16 +258,20 @@ export class ScansService implements OnApplicationBootstrap {
         document.batch.cycle.endDate,
       );
 
+      // Le modèle retourne un matricule: seul un matricule de la liste active
+      // est accepté comme identifiant d'employé.
+      const employeeIdByMatricule = this.matriculeIndex(employees);
+
       await this.prisma.$transaction([
         this.prisma.extractedTimeSheetRow.deleteMany({
           where: { documentId },
         }),
         this.prisma.extractedTimeSheetRow.createMany({
           data: extraction.rows.map((row) => {
-            const employeeId = employees.some(
-              (employee) => employee.id === row.employeeId,
-            )
-              ? row.employeeId
+            const employeeId = row.matricule
+              ? (employeeIdByMatricule.get(
+                  ScansService.matriculeKey(row.matricule),
+                ) ?? null)
               : null;
             const days = row.days.map((day) => {
               const parsedValue = parseTimeSheetDayValue(day.value);
@@ -380,6 +384,23 @@ export class ScansService implements OnApplicationBootstrap {
     });
     await this.calculations.recalculateIfExists(row.document.batch.cycleId);
     return updated;
+  }
+
+  // Le matricule lu peut perdre ses zéros initiaux ou sa casse: on indexe la
+  // forme normalisée, sauf lorsqu'elle serait ambiguë entre deux employés.
+  private matriculeIndex(employees: { id: string; matricule: string }[]) {
+    const index = new Map<string, string | null>();
+    for (const employee of employees) {
+      const key = ScansService.matriculeKey(employee.matricule);
+      index.set(key, index.has(key) ? null : employee.id);
+    }
+    return {
+      get: (key: string) => index.get(key) ?? null,
+    };
+  }
+
+  private static matriculeKey(matricule: string) {
+    return matricule.trim().toUpperCase().replace(/^0+(?=.)/, '');
   }
 
   private extractedDays(value: unknown): ExtractedDay[] {

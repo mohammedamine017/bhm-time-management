@@ -115,7 +115,7 @@ describe('ScansService', () => {
         return {
           rows: [
             {
-              employeeId: 'employee-1',
+              matricule: 'BHM-001',
               extractedFullName: 'Ahmed Benali',
               matchedFullName: 'Ahmed Benali',
               sourceRowLabel: null,
@@ -171,6 +171,7 @@ describe('ScansService', () => {
     expect(persistedRow.days.map((day: { needsReview: boolean }) => day.needsReview))
       .toEqual([false, true, false]);
     expect(persistedRow.requiresReview).toBe(true);
+    expect(persistedRow.employeeId).toBe('employee-1');
   });
 
   it('requeues only the failed document requested by the user', async () => {

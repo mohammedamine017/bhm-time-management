@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   Injectable,
+  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -19,7 +20,7 @@ interface EmployeeReference {
 
 export interface ClaudeExtraction {
   rows: {
-    employeeId: string | null;
+    matricule: string | null;
     extractedFullName: string;
     matchedFullName: string | null;
     sourceRowLabel: string | null;
@@ -35,6 +36,10 @@ export interface ClaudeExtraction {
 
 @Injectable()
 export class ClaudeExtractionService {
+  // Les messages remontés à l'interface restent fonctionnels: le détail
+  // technique du fournisseur ne sort jamais des journaux du serveur.
+  private readonly logger = new Logger(ClaudeExtractionService.name);
+
   constructor(private readonly config: ConfigService) {}
 
   async extract(
@@ -52,8 +57,9 @@ export class ClaudeExtractionService {
       if (this.mockExtractionEnabled()) {
         return this.mockExtraction(employees, startDate, endDate);
       }
+      this.logger.error('ANTHROPIC_API_KEY absente de la configuration.');
       throw new ServiceUnavailableException(
-        'La cle ANTHROPIC_API_KEY doit etre configuree.',
+        'Le service de lecture des feuilles n’est pas disponible.',
       );
     }
 
@@ -120,8 +126,11 @@ export class ClaudeExtractionService {
       ) {
         return this.mockExtraction(employees, startDate, endDate);
       }
+      this.logger.error(
+        `Lecture refusée (${response.status}): ${details.slice(0, 300)}`,
+      );
       throw new BadGatewayException(
-        `Extraction Claude impossible (${response.status}): ${details.slice(0, 300)}`,
+        'La lecture automatique de cette feuille a échoué.',
       );
     }
 
@@ -130,13 +139,29 @@ export class ClaudeExtractionService {
       content: { type: string; text?: string }[];
     };
     if (message.stop_reason === 'max_tokens') {
-      throw new BadGatewayException('Reponse Claude incomplete.');
+      throw new BadGatewayException(
+        'La feuille contient trop de lignes pour être lue en une seule fois.',
+      );
     }
 
     const text = message.content.find((block) => block.type === 'text')?.text;
-    if (!text) throw new BadGatewayException('Claude n’a retourne aucun JSON.');
+    if (!text) {
+      this.logger.error(
+        `Réponse sans contenu exploitable (${message.stop_reason}).`,
+      );
+      throw new BadGatewayException(
+        'La lecture de cette feuille n’a produit aucun résultat.',
+      );
+    }
 
-    return JSON.parse(text) as ClaudeExtraction;
+    try {
+      return JSON.parse(text) as ClaudeExtraction;
+    } catch {
+      this.logger.error(`Réponse illisible: ${text.slice(0, 300)}`);
+      throw new BadGatewayException(
+        'Le résultat de la lecture de cette feuille est illisible.',
+      );
+    }
   }
 
   private mockExtractionEnabled() {
@@ -153,7 +178,7 @@ export class ClaudeExtractionService {
       rows: employees.slice(0, 6).map((employee, employeeIndex) => {
         let workdayIndex = 0;
         return {
-          employeeId: employee.id,
+          matricule: employee.matricule,
           extractedFullName: `${employee.firstName} ${employee.lastName}`,
           matchedFullName: `${employee.firstName} ${employee.lastName}`,
           sourceRowLabel: 'Extraction simulée',
@@ -198,12 +223,14 @@ export class ClaudeExtractionService {
     startDate: Date,
     endDate: Date,
   ) {
-    const references = employees.map((employee) => ({
-      employeeId: employee.id,
-      matricule: employee.matricule,
-      fullName: `${employee.firstName} ${employee.lastName}`,
-      alternateName: `${employee.lastName} ${employee.firstName}`,
-    }));
+    // Une ligne par employé: matricule puis nom complet. Le matricule sert de
+    // référence de retour, ce qui évite d'envoyer un identifiant interne.
+    const references = employees
+      .map(
+        (employee) =>
+          `${employee.matricule} ${employee.firstName} ${employee.lastName}`,
+      )
+      .join('\n');
     const expectedDates = this.datesBetween(startDate, endDate);
 
     return [
@@ -213,7 +240,9 @@ export class ClaudeExtractionService {
       'Lis uniquement la grille principale des horaires.',
       'Le titre Atelier ne represente pas une donnee. Le nom manuscrit peut occuper les zones Atelier et Nom et Prenom: lis-les comme une seule zone d’identite.',
       'Extrais chaque vraie ligne employe visible dans la grille.',
-      'Associe la ligne au meilleur employe connu a partir du nom complet. Le nom et le prenom peuvent etre inverses.',
+      'Associe la ligne au meilleur employe connu a partir du nom complet et retourne son matricule.',
+      'Le nom manuscrit peut etre inverse (nom avant prenom), incomplet (nom seul ou prenom seul) ou mal orthographie: retiens quand meme le meilleur employe correspondant.',
+      'Si deux employes sont aussi plausibles l’un que l’autre, retourne matricule null et mets requiresReview a true plutot que de deviner.',
       `Pour chaque ligne, retourne exactement une valeur pour chacune de ces dates, dans le meme ordre: ${expectedDates.join(', ')}.`,
       'Valeurs autorisees par case: nombre d’heures, A, 0, X, T, F, STC, MU, RC, CP, MA, heures combinees avec D ou F, ou chaine vide.',
       'Preserve exactement les codes manuscrits suivants en majuscules: STC, MU, RC, CP et MA. Ne les remplace jamais par un autre code.',
@@ -223,7 +252,7 @@ export class ClaudeExtractionService {
       'D signifie deplacement avec les heures travaillees du meme jour. F signifie jour ferie avec les heures travaillees du meme jour.',
       'Ne retourne jamais D seul: un deplacement doit toujours etre associe aux heures visibles dans la meme case.',
       'Ne devine pas une valeur illisible: conserve la meilleure lecture, reduis confidence et mets needsReview a true.',
-      `Employes connus: ${JSON.stringify(references)}`,
+      `Employes connus, un par ligne au format "matricule prenom nom":\n${references}`,
     ].join('\n');
   }
 
@@ -239,7 +268,7 @@ export class ClaudeExtractionService {
             type: 'object',
             additionalProperties: false,
             required: [
-              'employeeId',
+              'matricule',
               'extractedFullName',
               'matchedFullName',
               'sourceRowLabel',
@@ -247,7 +276,7 @@ export class ClaudeExtractionService {
               'days',
             ],
             properties: {
-              employeeId: { type: ['string', 'null'] },
+              matricule: { type: ['string', 'null'] },
               extractedFullName: { type: 'string' },
               matchedFullName: { type: ['string', 'null'] },
               sourceRowLabel: { type: ['string', 'null'] },
