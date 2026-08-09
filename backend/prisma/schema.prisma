@@ -56,6 +56,10 @@ model PayrollCycle {
   timeClockReports TimeClockReport[]
   calculationRun CalculationRun?
 
+  // Un index unique partiel sur payrollMonth (WHERE status <> 'RESET')
+  // garantit un seul cycle vivant par mois. Prisma ne sait pas décrire un
+  // index partiel: il est créé dans la migration
+  // 20260808000000_single_cycle_per_payroll_month.
   @@index([status])
   @@index([payrollMonth])
 }

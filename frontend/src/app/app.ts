@@ -233,6 +233,8 @@ export class App implements OnInit {
       this.loadCalculationStatus();
       this.loadHolidays();
       this.loadTimeClockReports();
+      // Le mois ouvert est exclu de l'historique: il doit être rechargé.
+      this.loadCalculationHistory();
     });
   }
 
@@ -1170,7 +1172,7 @@ export class App implements OnInit {
   }
 
   private loadCalculationHistory() {
-    this.calculations.history().subscribe({
+    this.calculations.history(this.payrollMonth()).subscribe({
       next: (history) => this.calculationHistory.set(history),
       error: () => this.historyError.set('Historique indisponible.'),
     });

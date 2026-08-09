@@ -44,9 +44,10 @@ export class CalculationService {
     );
   }
 
-  history() {
+  history(month: string) {
     return this.http.get<CalculationHistoryItem[]>(
       `${this.apiUrl}/calculations/history`,
+      { params: { month } },
     );
   }
 

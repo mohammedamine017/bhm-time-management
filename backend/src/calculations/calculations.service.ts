@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CycleStatus, ImportStatus, Prisma } from '@prisma/client';
+import { ImportStatus, Prisma } from '@prisma/client';
 import ExcelJS from 'exceljs';
 import { CyclesService } from '../cycles/cycles.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -89,13 +89,11 @@ export class CalculationsService {
     if (run) await this.calculateCycle(cycleId);
   }
 
-  async history() {
+  // Le mois ouvert est affiché dans la vue d'ensemble: l'historique liste
+  // tous les autres mois calculés.
+  async history(month?: string) {
     const runs = await this.prisma.calculationRun.findMany({
-      where: {
-        cycle: {
-          status: { in: [CycleStatus.COMPLETED, CycleStatus.RESET] },
-        },
-      },
+      where: month ? { cycle: { payrollMonth: { not: month } } } : {},
       include: {
         cycle: true,
         results: {
@@ -156,7 +154,7 @@ export class CalculationsService {
   }
 
   async historyRun(runId: string) {
-    return this.findArchivedRun(runId);
+    return this.findRun(runId);
   }
 
   async exportWorkbook(month?: string, employeeId?: string) {
@@ -175,7 +173,7 @@ export class CalculationsService {
   }
 
   async exportHistoryWorkbook(runId: string, employeeId?: string) {
-    const run = await this.findArchivedRun(runId);
+    const run = await this.findRun(runId);
     return this.buildWorkbook(run.cycle.payrollMonth, run.results, employeeId);
   }
 
@@ -303,14 +301,9 @@ export class CalculationsService {
     };
   }
 
-  private async findArchivedRun(runId: string) {
+  private async findRun(runId: string) {
     const run = await this.prisma.calculationRun.findFirst({
-      where: {
-        id: runId,
-        cycle: {
-          status: { in: [CycleStatus.COMPLETED, CycleStatus.RESET] },
-        },
-      },
+      where: { id: runId },
       include: {
         cycle: true,
         results: {
@@ -320,7 +313,7 @@ export class CalculationsService {
       },
     });
     if (!run) {
-      throw new NotFoundException('Calcul archivé introuvable.');
+      throw new NotFoundException('Calcul introuvable.');
     }
     return run;
   }

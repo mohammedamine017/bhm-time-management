@@ -20,89 +20,68 @@ describe('CyclesService', () => {
     expect(() => CyclesService.bounds('2026-13')).toThrow(BadRequestException);
   });
 
-  it('reactivates an existing month without replacing its data', async () => {
-    const current = {
-      id: 'cycle-august',
-      payrollMonth: '2026-08',
-      status: 'ACTIVE',
-    };
-    const existing = {
-      id: 'cycle-july',
-      payrollMonth: '2026-07',
-      status: 'COMPLETED',
-    };
-    const findFirst = jest
-      .fn()
-      .mockResolvedValueOnce(current)
-      .mockResolvedValueOnce(existing);
-    const update = jest
-      .fn()
-      .mockResolvedValueOnce({ ...current, status: 'COMPLETED' })
-      .mockResolvedValueOnce({ ...existing, status: 'ACTIVE' });
-    const prisma = {
-      payrollCycle: { findFirst },
-      $transaction: jest.fn().mockImplementation((callback) =>
-        callback({
-          payrollCycle: { update, create: jest.fn() },
-        }),
-      ),
-    };
+  it('returns the live cycle of the month without touching another month', async () => {
+    const july = { id: 'cycle-july', payrollMonth: '2026-07', status: 'ACTIVE' };
+    const findFirst = jest.fn().mockResolvedValue(july);
+    const create = jest.fn();
+    const prisma = { payrollCycle: { findFirst, create } };
     const service = new CyclesService(prisma as never);
 
     const result = await service.getOrCreateActive('2026-07');
 
-    expect(update).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        where: { id: 'cycle-august' },
-        data: expect.objectContaining({ status: 'COMPLETED' }),
-      }),
-    );
-    expect(update).toHaveBeenNthCalledWith(2, {
-      where: { id: 'cycle-july' },
-      data: { status: 'ACTIVE', completedAt: null },
+    expect(result).toEqual(july);
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { payrollMonth: '2026-07', status: { not: 'RESET' } },
     });
-    expect(result).toEqual(expect.objectContaining({ id: 'cycle-july' }));
+    expect(create).not.toHaveBeenCalled();
   });
 
-  it('recovers an older month containing documents instead of an empty duplicate', async () => {
-    const emptyCurrent = {
-      id: 'cycle-july-empty',
-      payrollMonth: '2026-07',
-      status: 'ACTIVE',
-    };
-    const existingWithDocuments = {
-      id: 'cycle-july-with-documents',
-      payrollMonth: '2026-07',
-      status: 'COMPLETED',
-    };
-    const findFirst = jest
-      .fn()
-      .mockResolvedValueOnce(emptyCurrent)
-      .mockResolvedValueOnce(existingWithDocuments);
-    const update = jest
-      .fn()
-      .mockResolvedValueOnce({ ...emptyCurrent, status: 'COMPLETED' })
-      .mockResolvedValueOnce({
-        ...existingWithDocuments,
-        status: 'ACTIVE',
-      });
+  it('creates the cycle of the month when none is live', async () => {
+    const created = { id: 'cycle-july', payrollMonth: '2026-07' };
+    const create = jest.fn().mockResolvedValue(created);
     const prisma = {
-      payrollCycle: { findFirst },
-      $transaction: jest.fn().mockImplementation((callback) =>
-        callback({
-          payrollCycle: { update, create: jest.fn() },
-        }),
-      ),
+      payrollCycle: { findFirst: jest.fn().mockResolvedValue(null), create },
     };
     const service = new CyclesService(prisma as never);
 
     const result = await service.getOrCreateActive('2026-07');
 
-    expect(result).toEqual(
-      expect.objectContaining({ id: 'cycle-july-with-documents' }),
-    );
-    expect(update).toHaveBeenCalledTimes(2);
+    expect(result).toEqual(created);
+    expect(create).toHaveBeenCalledWith({
+      data: {
+        payrollMonth: '2026-07',
+        startDate: new Date('2026-06-20T00:00:00.000Z'),
+        endDate: new Date('2026-07-19T00:00:00.000Z'),
+      },
+    });
+  });
+
+  it('recovers the cycle created by a parallel call', async () => {
+    const winner = { id: 'cycle-july', payrollMonth: '2026-07' };
+    const prisma = {
+      payrollCycle: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockRejectedValue(new Error('unique constraint')),
+        findFirstOrThrow: jest.fn().mockResolvedValue(winner),
+      },
+    };
+    const service = new CyclesService(prisma as never);
+
+    await expect(service.getOrCreateActive('2026-07')).resolves.toEqual(winner);
+  });
+
+  it('ignores a reset cycle and opens a fresh one for the same month', async () => {
+    const created = { id: 'cycle-july-2', payrollMonth: '2026-07' };
+    const findFirst = jest.fn().mockResolvedValue(null);
+    const prisma = {
+      payrollCycle: { findFirst, create: jest.fn().mockResolvedValue(created) },
+    };
+    const service = new CyclesService(prisma as never);
+
+    await expect(service.getOrCreateActive('2026-07')).resolves.toEqual(created);
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { payrollMonth: '2026-07', status: { not: 'RESET' } },
+    });
   });
 
   it('resets the cycle and archives employees only when requested', async () => {

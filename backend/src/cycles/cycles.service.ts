@@ -7,73 +7,33 @@ import { ImportStatus } from '@prisma/client';
 export class CyclesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Un mois de paie possède exactement un cycle vivant. Les cycles
+  // réinitialisés restent en base pour les archives et sortent de l'index
+  // unique partiel `PayrollCycle_payrollMonth_live_key`.
   async getOrCreateActive(month?: string) {
-    const current = await this.prisma.payrollCycle.findFirst({
-      where: { status: CycleStatus.ACTIVE },
-      orderBy: { createdAt: 'desc' },
-    });
+    const payrollMonth = month ?? CyclesService.currentMonth();
+    const bounds = CyclesService.bounds(payrollMonth);
+    const live = {
+      payrollMonth,
+      status: { not: CycleStatus.RESET },
+    };
 
-    if (!month && current) {
-      return current;
-    }
+    const existing = await this.prisma.payrollCycle.findFirst({ where: live });
+    if (existing) return existing;
 
-    const targetMonth = month ?? CyclesService.currentMonth();
-    const bounds = CyclesService.bounds(targetMonth);
-
-    const existingWithDocuments = await this.prisma.payrollCycle.findFirst({
-      where: {
-        payrollMonth: targetMonth,
-        status: { in: [CycleStatus.ACTIVE, CycleStatus.COMPLETED] },
-        scanBatches: { some: {} },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (
-      current?.payrollMonth === targetMonth &&
-      (!existingWithDocuments || existingWithDocuments.id === current.id)
-    ) {
-      return current;
-    }
-
-    const existing =
-      existingWithDocuments ??
-      (await this.prisma.payrollCycle.findFirst({
-        where: {
-          payrollMonth: targetMonth,
-          status: { in: [CycleStatus.ACTIVE, CycleStatus.COMPLETED] },
-        },
-        orderBy: { createdAt: 'desc' },
-      }));
-
-    return this.prisma.$transaction(async (tx) => {
-      if (current) {
-        await tx.payrollCycle.update({
-          where: { id: current.id },
-          data: {
-            status: CycleStatus.COMPLETED,
-            completedAt: new Date(),
-          },
-        });
-      }
-
-      if (existing) {
-        return tx.payrollCycle.update({
-          where: { id: existing.id },
-          data: {
-            status: CycleStatus.ACTIVE,
-            completedAt: null,
-          },
-        });
-      }
-
-      return tx.payrollCycle.create({
+    try {
+      return await this.prisma.payrollCycle.create({
         data: {
-          payrollMonth: targetMonth,
+          payrollMonth,
           startDate: bounds.start,
           endDate: bounds.end,
         },
       });
-    });
+    } catch {
+      // Course perdue contre un appel parallèle: l'index unique garantit
+      // qu'un seul cycle a été créé pour ce mois.
+      return this.prisma.payrollCycle.findFirstOrThrow({ where: live });
+    }
   }
 
   async reset(month?: string, resetEmployees = false) {

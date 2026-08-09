@@ -25,8 +25,8 @@ export class CalculationsController {
   }
 
   @Get('history')
-  history() {
-    return this.calculations.history();
+  history(@Query('month') month?: string) {
+    return this.calculations.history(month);
   }
 
   @Get('history/:runId')
