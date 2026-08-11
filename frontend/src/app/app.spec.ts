@@ -5,6 +5,8 @@ import { TestBed } from '@angular/core/testing';
 import { App } from './app';
 
 describe('App', () => {
+  afterEach(() => localStorage.removeItem('bhm-admin'));
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
@@ -25,15 +27,30 @@ describe('App', () => {
     expect(element.textContent).not.toContain('Se connecter');
   });
 
-  it('shows the final navigation pages', () => {
+  const navigationLabels = (element: HTMLElement) =>
+    Array.from(element.querySelectorAll<HTMLElement>('.nav button strong')).map(
+      (label) => label.textContent?.trim(),
+    );
+
+  it('hides the reserved pages by default', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
-    const element = fixture.nativeElement as HTMLElement;
-    const labels = Array.from(
-      element.querySelectorAll<HTMLElement>('.nav button strong'),
-    ).map((label) => label.textContent?.trim());
 
-    expect(labels).toEqual([
+    expect(navigationLabels(fixture.nativeElement as HTMLElement)).toEqual([
+      'Vue d’ensemble',
+      'Employés',
+      'Feuilles horaires',
+      'Rapports pointeuse',
+      'Historique des calculs',
+    ]);
+  });
+
+  it('shows the reserved pages once the admin flag is stored', () => {
+    localStorage.setItem('bhm-admin', '1');
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+
+    expect(navigationLabels(fixture.nativeElement as HTMLElement)).toEqual([
       'Vue d’ensemble',
       'Employés',
       'Feuilles horaires',

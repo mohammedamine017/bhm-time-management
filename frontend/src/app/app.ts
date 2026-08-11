@@ -131,9 +131,18 @@ export class App implements OnInit {
     signal<'ALL' | ArchivedDocument['type']>('ALL');
   protected readonly isMobileScan = window.location.pathname.startsWith('/mobile-scan');
 
-  protected readonly navigationGroups: {
+  // Réglages réservés: `?admin=1` les affiche et mémorise le choix,
+  // `?admin=0` les masque à nouveau.
+  protected readonly isAdmin = App.resolveAdmin();
+
+  private readonly allNavigationGroups: {
     label: string;
-    items: { view: AppView; label: string; helper: string }[];
+    items: {
+      view: AppView;
+      label: string;
+      helper: string;
+      admin?: boolean;
+    }[];
   }[] = [
     {
       label: 'Pilotage',
@@ -155,7 +164,12 @@ export class App implements OnInit {
           label: 'Rapports pointeuse',
           helper: 'Heures administration',
         },
-        { view: 'holidays', label: 'Jours fériés', helper: 'Calendrier' },
+        {
+          view: 'holidays',
+          label: 'Jours fériés',
+          helper: 'Calendrier',
+          admin: true,
+        },
       ],
     },
     {
@@ -166,10 +180,23 @@ export class App implements OnInit {
           label: 'Historique des calculs',
           helper: 'Périodes archivées',
         },
-        { view: 'documents', label: 'Documents', helper: 'Fichiers archivés' },
+        {
+          view: 'documents',
+          label: 'Documents',
+          helper: 'Fichiers archivés',
+          admin: true,
+        },
       ],
     },
   ];
+
+  protected readonly navigationGroups = this.allNavigationGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => this.isAdmin || !item.admin),
+    }))
+    .filter((group) => group.items.length);
+
   protected readonly navigation = this.navigationGroups.flatMap(
     (group) => group.items,
   );
@@ -1278,6 +1305,13 @@ export class App implements OnInit {
       timeZone: 'UTC',
     });
     return `Du ${formatter.format(new Date(cycle.startDate))} au ${formatter.format(new Date(cycle.endDate))}`;
+  }
+
+  private static resolveAdmin() {
+    const requested = new URLSearchParams(window.location.search).get('admin');
+    if (requested === '1') localStorage.setItem('bhm-admin', '1');
+    if (requested === '0') localStorage.removeItem('bhm-admin');
+    return localStorage.getItem('bhm-admin') === '1';
   }
 
   private currentMonth() {
