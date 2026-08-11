@@ -746,11 +746,20 @@ export class App implements OnInit {
     });
   }
 
+  // Même règle que le calcul: la pause du rapport s'ajoute à chaque journée
+  // travaillée, jamais à une journée sans pointage.
   protected timeClockReportTotalMinutes(report: TimeClockReport) {
     return report.employees.reduce(
       (total, entry) =>
         total +
-        entry.days.reduce((dayTotal, day) => dayTotal + day.durationMinutes, 0),
+        entry.days.reduce(
+          (dayTotal, day) =>
+            dayTotal +
+            (day.durationMinutes
+              ? day.durationMinutes + report.pauseMinutes
+              : 0),
+          0,
+        ),
       0,
     );
   }

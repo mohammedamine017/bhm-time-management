@@ -650,7 +650,7 @@
                   <th>Rapport</th>
                   <th>Date d’import</th>
                   <th>Employé</th>
-                  <th>Total pointé</th>
+                  <th>Total heures</th>
                   <th>Pause payée</th>
                   <th>État</th>
                   <th class="actions-column">Actions</th>
@@ -1661,7 +1661,7 @@
             <h2>{{ report.fileName }}</h2>
             <p>
               {{ timeClockReportEmployeeLabel(report) }} ·
-              {{ minutesLabel(timeClockReportTotalMinutes(report)) }} pointées ·
+              {{ minutesLabel(timeClockReportTotalMinutes(report)) }} au total ·
               pause de {{ report.pauseMinutes }} min par journée travaillée
             </p>
           </div>
