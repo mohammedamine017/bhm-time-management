@@ -32,6 +32,73 @@ describe('CalculationsService', () => {
     });
   });
 
+  it('ajoute la pause du rapport à chaque journée pointée', async () => {
+    const employee = { id: 'employee-1', firstName: 'Anes', lastName: 'B' };
+    const entry = {
+      employeeId: 'employee-1',
+      reportId: 'report-1',
+      requiresReview: false,
+      days: [
+        {
+          date: '2026-06-22',
+          punches: ['08:00:00', '16:00:00'],
+          durationMinutes: 480,
+          state: 'WORKED',
+          stateLabel: '',
+          needsReview: false,
+        },
+        {
+          date: '2026-06-23',
+          punches: [],
+          durationMinutes: 0,
+          state: 'ABSENT',
+          stateLabel: 'Absent(e)',
+          needsReview: false,
+        },
+      ],
+      report: {
+        fileName: 'pointage.xls',
+        storageUrl: null,
+        pauseMinutes: 60,
+      },
+    };
+    const calculate = jest.fn().mockReturnValue({ employeeId: 'employee-1' });
+    const prisma = {
+      payrollCycle: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: 'cycle-1',
+          startDate: new Date('2026-06-20T00:00:00.000Z'),
+          endDate: new Date('2026-07-19T00:00:00.000Z'),
+        }),
+      },
+      employee: { findMany: jest.fn().mockResolvedValue([employee]) },
+      extractedTimeSheetRow: { findMany: jest.fn().mockResolvedValue([]) },
+      timeClockReportEmployee: { findMany: jest.fn().mockResolvedValue([entry]) },
+      holiday: { findMany: jest.fn().mockResolvedValue([]) },
+      calculationRun: { findUnique: jest.fn().mockResolvedValue({ id: 'run-1' }) },
+      $transaction: jest.fn().mockImplementation(async (callback) =>
+        callback({
+          calculationRun: { upsert: jest.fn().mockResolvedValue({ id: 'run-1' }) },
+          employeeCalculation: {
+            deleteMany: jest.fn(),
+            createMany: jest.fn(),
+          },
+        }),
+      ),
+    };
+    const service = new CalculationsService(
+      prisma as never,
+      {} as never,
+      { calculate } as never,
+    );
+
+    await service.recalculateIfExists('cycle-1');
+
+    const administrationDays = calculate.mock.calls[0][0].administrationDays;
+    expect(administrationDays[0].durationMinutes).toBe(540);
+    expect(administrationDays[1].durationMinutes).toBe(0);
+  });
+
   it('returns archived runs with aggregated totals and review count', async () => {
     const launchedAt = new Date('2026-07-20T08:00:00.000Z');
     const resetAt = new Date('2026-07-21T08:00:00.000Z');

@@ -20,7 +20,7 @@ describe('TimeClockParserService', () => {
           expect.objectContaining({
             date: '2026-06-22',
             punches: ['08:00:00', '12:00:00', '13:00:00', '17:00:00'],
-            durationMinutes: 510,
+            durationMinutes: 480,
           }),
         ],
       }),
@@ -40,7 +40,7 @@ describe('TimeClockParserService', () => {
         {
           date: '2026-06-23',
           punches: ['08:15:00', '16:45:00'],
-          durationMinutes: 540,
+          durationMinutes: 510,
           state: 'WORKED',
           stateLabel: '',
           needsReview: false,

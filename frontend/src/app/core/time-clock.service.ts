@@ -28,6 +28,13 @@ export class TimeClockService {
     );
   }
 
+  updatePause(reportId: string, pauseMinutes: number) {
+    return this.http.patch<TimeClockReport>(
+      `${this.apiUrl}/time-clock-reports/${reportId}/pause`,
+      { pauseMinutes },
+    );
+  }
+
   updateDay(entryId: string, date: string, durationMinutes: number) {
     return this.http.patch<TimeClockReportEmployee>(
       `${this.apiUrl}/time-clock-reports/${entryId}/days/${date}`,

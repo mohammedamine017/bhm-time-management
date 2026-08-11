@@ -41,7 +41,7 @@ describe('CalculationEngineService', () => {
     });
   });
 
-  it('additionne les heures chantier et administration pour la même date', () => {
+  it('additionne les heures atelier et administration pour la même date', () => {
     const result = engine.calculate({
       employeeId: 'employee-1',
       scannedDays: [scanned('2026-06-22', '4')],

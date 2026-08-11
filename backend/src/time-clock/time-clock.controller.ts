@@ -35,6 +35,14 @@ export class TimeClockController {
     return this.reports.import(files, month);
   }
 
+  @Patch(':reportId/pause')
+  updatePause(
+    @Param('reportId') reportId: string,
+    @Body() body: { pauseMinutes: number },
+  ) {
+    return this.reports.updatePause(reportId, body.pauseMinutes);
+  }
+
   @Patch(':entryId/days/:date')
   updateDay(
     @Param('entryId') entryId: string,

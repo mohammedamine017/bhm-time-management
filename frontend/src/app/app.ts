@@ -77,6 +77,7 @@ export class App implements OnInit {
   protected readonly timeClockError = signal('');
   protected readonly timeClockSearch = signal('');
   protected readonly savingTimeClockDay = signal('');
+  protected readonly savingPause = signal('');
   protected readonly scanSent = signal(false);
   private readonly maxScanFiles = 12;
   private readonly maxScanFileSize = 12 * 1024 * 1024;
@@ -715,6 +716,34 @@ export class App implements OnInit {
     );
     if (!names.length) return 'Aucun employé';
     return names.length === 1 ? names[0] : `${names[0]} +${names.length - 1}`;
+  }
+
+  protected savePause(report: TimeClockReport, pauseMinutes: string) {
+    const minutes = Number(pauseMinutes);
+    if (minutes === report.pauseMinutes) return;
+    this.savingPause.set(report.id);
+    this.timeClockError.set('');
+    this.timeClock.updatePause(report.id, minutes).subscribe({
+      next: (updated) => {
+        this.savingPause.set('');
+        const applyPause = (item: TimeClockReport) =>
+          item.id === updated.id
+            ? { ...item, pauseMinutes: updated.pauseMinutes }
+            : item;
+        this.timeClockReports.update((reports) => reports.map(applyPause));
+        this.selectedTimeClockReport.update((item) =>
+          item ? applyPause(item) : item,
+        );
+        this.loadCalculationStatus();
+      },
+      error: (error) => {
+        this.savingPause.set('');
+        this.timeClockError.set(
+          error.error?.message ?? 'Modification de la pause impossible.',
+        );
+        this.loadTimeClockReports();
+      },
+    });
   }
 
   protected timeClockReportTotalMinutes(report: TimeClockReport) {

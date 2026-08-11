@@ -383,6 +383,10 @@ export class CalculationsService {
         if (day.date > this.isoDate(cycle.endDate)) continue;
         employeeDays.push({
           ...day,
+          // La pause payée du rapport s'ajoute à chaque journée pointée.
+          durationMinutes: day.durationMinutes
+            ? day.durationMinutes + entry.report.pauseMinutes
+            : 0,
           reportId: entry.reportId,
           fileName: entry.report.fileName,
           storageUrl: entry.report.storageUrl,

@@ -26,5 +26,6 @@ export interface TimeClockReport {
   fileName: string;
   storageUrl: string | null;
   importedAt: string;
+  pauseMinutes: number;
   employees: TimeClockReportEmployee[];
 }

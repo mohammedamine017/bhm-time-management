@@ -162,8 +162,8 @@ export class TimeClockParserService {
       }
       minutes += exit - entry;
     }
-    // The administration pause is paid and must be included once per worked day.
-    if (minutes > 0) minutes += 30;
+    // Temps réellement pointé: la pause payée est ajoutée par le calcul, à
+    // partir du réglage du rapport.
     return { minutes, needsReview };
   }
 

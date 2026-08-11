@@ -179,6 +179,24 @@ export class TimeClockService {
     return `${day}/${month}/${year}`;
   }
 
+  // Pause payée du rapport: 30 min en atelier, 60 min en administration.
+  async updatePause(reportId: string, pauseMinutes: number) {
+    if (![30, 60].includes(pauseMinutes)) {
+      throw new BadRequestException('La pause doit être de 30 ou 60 minutes.');
+    }
+    const report = await this.prisma.timeClockReport.findUnique({
+      where: { id: reportId },
+    });
+    if (!report) throw new BadRequestException('Rapport introuvable.');
+
+    const updated = await this.prisma.timeClockReport.update({
+      where: { id: reportId },
+      data: { pauseMinutes },
+    });
+    await this.calculations.recalculateIfExists(report.cycleId);
+    return updated;
+  }
+
   async updateDay(entryId: string, date: string, durationMinutes: number) {
     if (!Number.isInteger(durationMinutes) || durationMinutes < 0) {
       throw new BadRequestException('La durée doit être un nombre de minutes positif.');

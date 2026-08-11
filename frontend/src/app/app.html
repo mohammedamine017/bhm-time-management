@@ -650,7 +650,8 @@
                   <th>Rapport</th>
                   <th>Date d’import</th>
                   <th>Employé</th>
-                  <th>Total heures</th>
+                  <th>Total pointé</th>
+                  <th>Pause payée</th>
                   <th>État</th>
                   <th class="actions-column">Actions</th>
                 </tr>
@@ -667,6 +668,20 @@
                       <strong>
                         {{ minutesLabel(timeClockReportTotalMinutes(report)) }}
                       </strong>
+                    </td>
+                    <td>
+                      <select
+                        class="pause-select"
+                        [value]="report.pauseMinutes"
+                        [disabled]="savingPause() === report.id"
+                        [attr.aria-label]="
+                          'Pause payée de ' + timeClockReportEmployeeLabel(report)
+                        "
+                        (change)="savePause(report, $any($event.target).value)"
+                      >
+                        <option value="30">30 min (atelier)</option>
+                        <option value="60">1 h (administration)</option>
+                      </select>
                     </td>
                     <td>
                       <span
@@ -706,7 +721,7 @@
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="6" class="list-empty">
+                    <td colspan="7" class="list-empty">
                       Aucun rapport importé pour cette période.
                     </td>
                   </tr>
@@ -1646,8 +1661,8 @@
             <h2>{{ report.fileName }}</h2>
             <p>
               {{ timeClockReportEmployeeLabel(report) }} ·
-              {{ minutesLabel(timeClockReportTotalMinutes(report)) }} au total ·
-              importé le {{ formatDate(report.importedAt) }}
+              {{ minutesLabel(timeClockReportTotalMinutes(report)) }} pointées ·
+              pause de {{ report.pauseMinutes }} min par journée travaillée
             </p>
           </div>
           <button

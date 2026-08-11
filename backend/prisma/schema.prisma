@@ -164,6 +164,9 @@ model TimeClockReport {
   storageUrl  String?
   storageKey  String?
   checksum    String
+  // Pause payée incluse dans chaque journée pointée: 30 min par défaut,
+  // 60 min pour les employés de l'administration.
+  pauseMinutes Int                      @default(30)
   importedAt  DateTime                  @default(now())
   cycle       PayrollCycle              @relation(fields: [cycleId], references: [id], onDelete: Cascade)
   employees   TimeClockReportEmployee[]
