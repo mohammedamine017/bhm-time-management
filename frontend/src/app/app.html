@@ -679,8 +679,12 @@
                         "
                         (change)="savePause(report, $any($event.target).value)"
                       >
-                        <option value="30">30 min (atelier)</option>
-                        <option value="60">1 h (administration)</option>
+                        <option value="30" [selected]="report.pauseMinutes === 30">
+                          30 min (atelier)
+                        </option>
+                        <option value="60" [selected]="report.pauseMinutes === 60">
+                          1 h (administration)
+                        </option>
                       </select>
                     </td>
                     <td>
@@ -1688,7 +1692,10 @@
             <tbody>
               @for (entry of report.employees; track entry.id) {
                 @for (day of entry.days; track day.date) {
-                  <tr [class.needs-review]="day.needsReview">
+                  <tr
+                    [class.needs-review]="day.needsReview"
+                    [class.inactive-day]="!isInCycle(day.date)"
+                  >
                     <td>
                       <strong>
                         {{
@@ -1698,7 +1705,12 @@
                         }}
                       </strong>
                     </td>
-                    <td><strong>{{ dayLabel(day.date) }}</strong></td>
+                    <td>
+                      <strong>{{ dayLabel(day.date) }}</strong>
+                      @if (!isInCycle(day.date)) {
+                        <small class="status-detail">Hors période</small>
+                      }
+                    </td>
                     <td>
                       {{ day.punches.length ? day.punches.join(' · ') : '—' }}
                     </td>

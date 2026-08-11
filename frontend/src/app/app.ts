@@ -746,21 +746,31 @@ export class App implements OnInit {
     });
   }
 
-  // Même règle que le calcul: la pause du rapport s'ajoute à chaque journée
-  // travaillée, jamais à une journée sans pointage.
+  // Même règle que le calcul: seules les journées de la période comptent, et
+  // la pause du rapport s'ajoute à chaque journée travaillée.
   protected timeClockReportTotalMinutes(report: TimeClockReport) {
     return report.employees.reduce(
       (total, entry) =>
         total +
-        entry.days.reduce(
-          (dayTotal, day) =>
-            dayTotal +
-            (day.durationMinutes
-              ? day.durationMinutes + report.pauseMinutes
-              : 0),
-          0,
-        ),
+        entry.days
+          .filter((day) => this.isInCycle(day.date))
+          .reduce(
+            (dayTotal, day) =>
+              dayTotal +
+              (day.durationMinutes
+                ? day.durationMinutes + report.pauseMinutes
+                : 0),
+            0,
+          ),
       0,
+    );
+  }
+
+  protected isInCycle(date: string) {
+    const cycle = this.cycle();
+    if (!cycle) return true;
+    return (
+      date >= cycle.startDate.slice(0, 10) && date <= cycle.endDate.slice(0, 10)
     );
   }
 
