@@ -207,7 +207,7 @@
               <button
                 class="primary"
                 type="button"
-                [disabled]="!calculationStatus()?.canLaunch || calculationBusy()"
+                [disabled]="calculationBusy()"
                 (click)="launchCalculation()"
               >
                 {{

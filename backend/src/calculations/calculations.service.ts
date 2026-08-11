@@ -63,20 +63,18 @@ export class CalculationsService {
     return {
       cycle,
       prerequisites,
+      // Une période peut n'être alimentée que par les rapports de pointeuse.
       canLaunch:
         prerequisites.employeesReady &&
-        prerequisites.scansReady,
+        (prerequisites.scansReady || timeClockReports > 0),
       run,
     };
   }
 
+  // Le calcul reste toujours lançable: une période sans document produit
+  // simplement un résultat vide.
   async launch(month?: string) {
     const currentStatus = await this.status(month);
-    if (!currentStatus.canLaunch) {
-      throw new BadRequestException(
-        'La liste des employés et les feuilles horaires sont nécessaires.',
-      );
-    }
     await this.calculateCycle(currentStatus.cycle.id);
     return this.status(currentStatus.cycle.payrollMonth);
   }

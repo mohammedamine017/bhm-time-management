@@ -131,8 +131,7 @@ export class App implements OnInit {
     signal<'ALL' | ArchivedDocument['type']>('ALL');
   protected readonly isMobileScan = window.location.pathname.startsWith('/mobile-scan');
 
-  // Réglages réservés: `?admin=1` les affiche et mémorise le choix,
-  // `?admin=0` les masque à nouveau.
+  // Pages réservées: visibles uniquement tant que `?admin=1` est dans l'URL.
   protected readonly isAdmin = App.resolveAdmin();
 
   private readonly allNavigationGroups: {
@@ -872,7 +871,7 @@ export class App implements OnInit {
   }
 
   protected launchCalculation() {
-    if (!this.calculationStatus()?.canLaunch) return;
+    if (this.calculationBusy()) return;
     this.calculationBusy.set(true);
     this.calculationError.set('');
     this.calculations.launch(this.payrollMonth()).subscribe({
@@ -1308,10 +1307,7 @@ export class App implements OnInit {
   }
 
   private static resolveAdmin() {
-    const requested = new URLSearchParams(window.location.search).get('admin');
-    if (requested === '1') localStorage.setItem('bhm-admin', '1');
-    if (requested === '0') localStorage.removeItem('bhm-admin');
-    return localStorage.getItem('bhm-admin') === '1';
+    return new URLSearchParams(window.location.search).get('admin') === '1';
   }
 
   private currentMonth() {

@@ -5,7 +5,7 @@ import { TestBed } from '@angular/core/testing';
 import { App } from './app';
 
 describe('App', () => {
-  afterEach(() => localStorage.removeItem('bhm-admin'));
+  afterEach(() => history.replaceState({}, '', location.pathname));
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -45,8 +45,8 @@ describe('App', () => {
     ]);
   });
 
-  it('shows the reserved pages once the admin flag is stored', () => {
-    localStorage.setItem('bhm-admin', '1');
+  it('shows the reserved pages while the admin flag is in the address', () => {
+    history.replaceState({}, '', `${location.pathname}?admin=1`);
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
 
