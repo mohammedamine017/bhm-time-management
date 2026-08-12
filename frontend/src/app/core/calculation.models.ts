@@ -75,6 +75,7 @@ export interface CalculationHistoryItem {
   openDays: number;
   adjustmentMinutes: number;
   launchedAt: string;
+  deletedAt: string | null;
   archivedAt: string | null;
   employeeCount: number;
   reviewCount: number;

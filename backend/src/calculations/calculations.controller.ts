@@ -1,5 +1,6 @@
 import {
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -29,9 +30,29 @@ export class CalculationsController {
     return this.calculations.history(month);
   }
 
+  @Delete('history')
+  deleteHistory(@Query('month') month?: string) {
+    return this.calculations.deleteHistory(month);
+  }
+
+  @Get('deleted')
+  deletedHistory() {
+    return this.calculations.deletedHistory();
+  }
+
   @Get('history/:runId')
   historyRun(@Param('runId') runId: string) {
     return this.calculations.historyRun(runId);
+  }
+
+  @Delete('history/:runId')
+  deleteRun(@Param('runId') runId: string) {
+    return this.calculations.deleteRun(runId);
+  }
+
+  @Post('history/:runId/restore')
+  restoreRun(@Param('runId') runId: string) {
+    return this.calculations.restoreRun(runId);
   }
 
   @Get('history/:runId/export')

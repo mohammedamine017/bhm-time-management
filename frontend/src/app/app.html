@@ -1039,6 +1039,20 @@
                 <span class="filtered-count">
                   {{ filteredCalculationHistory().length }} période(s)
                 </span>
+                @if (calculationHistory().length) {
+                  <button
+                    class="compact-action danger"
+                    type="button"
+                    [disabled]="!!historyBusy()"
+                    (click)="deleteAllHistory()"
+                  >
+                    {{
+                      historyBusy() === 'delete:all'
+                        ? 'Suppression...'
+                        : 'Tout supprimer'
+                    }}
+                  </button>
+                }
               </div>
 
               @if (filteredCalculationHistory().length) {
@@ -1082,18 +1096,32 @@
                             </span>
                           </td>
                           <td>
-                            <button
-                              class="compact-action"
-                              type="button"
-                              [disabled]="!!historyBusy()"
-                              (click)="openHistoryRun(item)"
-                            >
-                              {{
-                                historyBusy() === item.id
-                                  ? 'Chargement...'
-                                  : 'Consulter'
-                              }}
-                            </button>
+                            <div class="row-actions">
+                              <button
+                                class="compact-action"
+                                type="button"
+                                [disabled]="!!historyBusy()"
+                                (click)="openHistoryRun(item)"
+                              >
+                                {{
+                                  historyBusy() === item.id
+                                    ? 'Chargement...'
+                                    : 'Consulter'
+                                }}
+                              </button>
+                              <button
+                                class="compact-action danger"
+                                type="button"
+                                [disabled]="!!historyBusy()"
+                                (click)="deleteHistoryRun(item)"
+                              >
+                                {{
+                                  historyBusy() === 'delete:' + item.id
+                                    ? 'Suppression...'
+                                    : 'Supprimer'
+                                }}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       }
@@ -1171,6 +1199,99 @@
               </div>
             } @else {
               <p class="holiday-empty">Aucun jour férié enregistré sur cette période.</p>
+            }
+          </section>
+        }
+
+        @case ('deleted-history') {
+          <section class="page-panel">
+            <div>
+              <p class="eyebrow">Accès réservé</p>
+              <h2>Corbeille des calculs</h2>
+              <p>
+                Périodes retirées de l’historique par l’utilisateur. Leurs
+                résultats sont conservés et peuvent être restaurés.
+              </p>
+            </div>
+          </section>
+
+          @if (historyError()) {
+            <p class="alert">{{ historyError() }}</p>
+          }
+
+          <section class="data-panel">
+            <div class="list-toolbar embedded">
+              <span class="filtered-count">
+                {{ deletedHistory().length }} période(s) dans la corbeille
+              </span>
+            </div>
+
+            @if (deletedHistory().length) {
+              <div class="table-scroll history-table-wrap">
+                <table class="history-table">
+                  <thead>
+                    <tr>
+                      <th>Période</th>
+                      <th>Calcul effectué</th>
+                      <th>Supprimé le</th>
+                      <th>Employés</th>
+                      <th>Heures normales</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of deletedHistory(); track item.id) {
+                      <tr>
+                        <td>
+                          <strong>{{ item.cycle.payrollMonth }}</strong>
+                          <small>{{ periodLabel(item.cycle) }}</small>
+                        </td>
+                        <td>{{ formatDate(item.launchedAt) }}</td>
+                        <td>
+                          @if (item.deletedAt) {
+                            {{ formatDate(item.deletedAt) }}
+                          }
+                        </td>
+                        <td>{{ item.employeeCount }}</td>
+                        <td>{{ minutesLabel(item.totals.normalMinutes) }}</td>
+                        <td>
+                          <div class="row-actions">
+                            <button
+                              class="compact-action"
+                              type="button"
+                              [disabled]="!!historyBusy()"
+                              (click)="openDeletedRun(item)"
+                            >
+                              {{
+                                historyBusy() === item.id
+                                  ? 'Chargement...'
+                                  : 'Consulter'
+                              }}
+                            </button>
+                            <button
+                              class="compact-action primary-action"
+                              type="button"
+                              [disabled]="!!historyBusy()"
+                              (click)="restoreHistoryRun(item)"
+                            >
+                              {{
+                                historyBusy() === 'restore:' + item.id
+                                  ? 'Restauration...'
+                                  : 'Restaurer'
+                              }}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <section class="empty-result compact">
+                <h2>Corbeille vide</h2>
+                <p>Aucun calcul supprimé pour le moment.</p>
+              </section>
             }
           </section>
         }

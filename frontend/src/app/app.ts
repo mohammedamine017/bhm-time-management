@@ -42,6 +42,7 @@ type AppView =
   | 'time-clock'
   | 'holidays'
   | 'calculation-history'
+  | 'deleted-history'
   | 'documents';
 
 @Component({
@@ -115,6 +116,8 @@ export class App implements OnInit {
   protected readonly calculationFilter =
     signal<'ALL' | 'REVIEW' | 'CORRECT'>('ALL');
   protected readonly calculationHistory = signal<CalculationHistoryItem[]>([]);
+  protected readonly deletedHistory = signal<CalculationHistoryItem[]>([]);
+  private historyDetailOrigin: AppView = 'calculation-history';
   protected readonly selectedHistoryRun = signal<CalculationHistoryRun | null>(
     null,
   );
@@ -181,6 +184,12 @@ export class App implements OnInit {
           helper: 'Périodes archivées',
         },
         {
+          view: 'deleted-history',
+          label: 'Corbeille des calculs',
+          helper: 'Périodes supprimées',
+          admin: true,
+        },
+        {
           view: 'documents',
           label: 'Documents',
           helper: 'Fichiers archivés',
@@ -232,6 +241,7 @@ export class App implements OnInit {
     if (view === 'time-clock') this.loadTimeClockReports();
     if (view === 'holidays') this.loadHolidays();
     if (view === 'calculation-history') this.loadCalculationHistory();
+    if (view === 'deleted-history') this.loadDeletedHistory();
     if (view === 'documents') this.loadArchives();
   }
 
@@ -1039,6 +1049,7 @@ export class App implements OnInit {
 
   protected openHistoryRun(item: CalculationHistoryItem) {
     this.historyBusy.set(item.id);
+    this.historyDetailOrigin = 'calculation-history';
     this.historyError.set('');
     this.calculations.historyRun(item.id).subscribe({
       next: (run) => {
@@ -1056,6 +1067,87 @@ export class App implements OnInit {
 
   protected closeHistoryRun() {
     this.selectedHistoryRun.set(null);
+    this.activeView.set(this.historyDetailOrigin);
+  }
+
+  // La corbeille réutilise l'écran de détail de l'historique.
+  protected openDeletedRun(item: CalculationHistoryItem) {
+    if (this.historyBusy()) return;
+    this.historyBusy.set(item.id);
+    this.historyDetailOrigin = 'deleted-history';
+    this.historyError.set('');
+    this.calculations.historyRun(item.id).subscribe({
+      next: (run) => {
+        this.selectedHistoryRun.set(run);
+        this.historyResultSearch.set('');
+        this.historyResultFilter.set('ALL');
+        this.historyBusy.set('');
+        this.activeView.set('calculation-history');
+      },
+      error: () => {
+        this.historyError.set('Le calcul supprimé est indisponible.');
+        this.historyBusy.set('');
+      },
+    });
+  }
+
+  protected deleteHistoryRun(item: CalculationHistoryItem) {
+    if (this.historyBusy()) return;
+    if (
+      !window.confirm(
+        `Déplacer le calcul de ${item.cycle.payrollMonth} vers la corbeille ?`,
+      )
+    ) {
+      return;
+    }
+    this.historyBusy.set(`delete:${item.id}`);
+    this.historyError.set('');
+    this.calculations.deleteRun(item.id).subscribe({
+      next: () => this.afterHistoryChange(item.id),
+      error: () => this.failHistoryChange('Suppression impossible.'),
+    });
+  }
+
+  protected deleteAllHistory() {
+    if (this.historyBusy() || !this.calculationHistory().length) return;
+    if (
+      !window.confirm(
+        `Déplacer les ${this.calculationHistory().length} période(s) de l’historique vers la corbeille ?`,
+      )
+    ) {
+      return;
+    }
+    this.historyBusy.set('delete:all');
+    this.historyError.set('');
+    this.calculations.deleteHistory(this.payrollMonth()).subscribe({
+      next: () => this.afterHistoryChange(),
+      error: () => this.failHistoryChange('Suppression impossible.'),
+    });
+  }
+
+  protected restoreHistoryRun(item: CalculationHistoryItem) {
+    if (this.historyBusy()) return;
+    this.historyBusy.set(`restore:${item.id}`);
+    this.historyError.set('');
+    this.calculations.restoreRun(item.id).subscribe({
+      next: () => this.afterHistoryChange(item.id),
+      error: () => this.failHistoryChange('Restauration impossible.'),
+    });
+  }
+
+  private afterHistoryChange(closedRunId?: string) {
+    this.historyBusy.set('');
+    if (closedRunId && this.selectedHistoryRun()?.id === closedRunId) {
+      this.closeHistoryRun();
+    }
+    this.loadCalculationHistory();
+    this.loadDeletedHistory();
+    this.loadCalculationStatus();
+  }
+
+  private failHistoryChange(message: string) {
+    this.historyBusy.set('');
+    this.historyError.set(message);
   }
 
   protected openHistoryCalculation(
@@ -1278,6 +1370,14 @@ export class App implements OnInit {
     this.calculations.history(this.payrollMonth()).subscribe({
       next: (history) => this.calculationHistory.set(history),
       error: () => this.historyError.set('Historique indisponible.'),
+    });
+  }
+
+  private loadDeletedHistory() {
+    if (!this.isAdmin) return;
+    this.calculations.deletedHistory().subscribe({
+      next: (history) => this.deletedHistory.set(history),
+      error: () => this.historyError.set('Corbeille indisponible.'),
     });
   }
 

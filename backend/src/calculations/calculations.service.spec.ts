@@ -6,7 +6,7 @@ describe('CalculationsService', () => {
       employee: { count: jest.fn().mockResolvedValue(6) },
       extractedTimeSheetRow: { count: jest.fn().mockResolvedValue(2) },
       timeClockReport: { count: jest.fn().mockResolvedValue(3) },
-      calculationRun: { findUnique: jest.fn().mockResolvedValue(null) },
+      calculationRun: { findFirst: jest.fn().mockResolvedValue(null) },
     };
     const cycles = {
       getOrCreateActive: jest.fn().mockResolvedValue({
@@ -75,7 +75,7 @@ describe('CalculationsService', () => {
       extractedTimeSheetRow: { findMany: jest.fn().mockResolvedValue([]) },
       timeClockReportEmployee: { findMany: jest.fn().mockResolvedValue([entry]) },
       holiday: { findMany: jest.fn().mockResolvedValue([]) },
-      calculationRun: { findUnique: jest.fn().mockResolvedValue({ id: 'run-1' }) },
+      calculationRun: { findFirst: jest.fn().mockResolvedValue({ id: 'run-1' }) },
       $transaction: jest.fn().mockImplementation(async (callback) =>
         callback({
           calculationRun: { upsert: jest.fn().mockResolvedValue({ id: 'run-1' }) },
@@ -97,6 +97,48 @@ describe('CalculationsService', () => {
     const administrationDays = calculate.mock.calls[0][0].administrationDays;
     expect(administrationDays[0].durationMinutes).toBe(540);
     expect(administrationDays[1].durationMinutes).toBe(0);
+  });
+
+  it('sépare l’historique de la corbeille et restaure un calcul', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const update = jest.fn().mockResolvedValue({});
+    const prisma = {
+      calculationRun: {
+        findMany,
+        findFirst: jest.fn().mockResolvedValue({ id: 'run-1', cycle: {}, results: [] }),
+        update,
+        updateMany: jest.fn().mockResolvedValue({ count: 2 }),
+      },
+    };
+    const service = new CalculationsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
+
+    await service.history('2026-08');
+    expect(findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { deletedAt: null, cycle: { payrollMonth: { not: '2026-08' } } },
+      }),
+    );
+
+    await service.deletedHistory();
+    expect(findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: { deletedAt: { not: null } } }),
+    );
+
+    await service.deleteRun('run-1');
+    expect(update).toHaveBeenLastCalledWith({
+      where: { id: 'run-1' },
+      data: { deletedAt: expect.any(Date) },
+    });
+
+    await service.restoreRun('run-1');
+    expect(update).toHaveBeenLastCalledWith({
+      where: { id: 'run-1' },
+      data: { deletedAt: null },
+    });
   });
 
   it('returns archived runs with aggregated totals and review count', async () => {

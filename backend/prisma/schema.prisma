@@ -198,8 +198,13 @@ model CalculationRun {
   adjustmentMinutes Int
   launchedAt   DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
+  // Suppression réversible: le calcul quitte l'historique et rejoint la
+  // corbeille, sans perdre ses résultats.
+  deletedAt    DateTime?
   cycle        PayrollCycle         @relation(fields: [cycleId], references: [id], onDelete: Cascade)
   results      EmployeeCalculation[]
+
+  @@index([deletedAt])
 }
 
 model EmployeeCalculation {

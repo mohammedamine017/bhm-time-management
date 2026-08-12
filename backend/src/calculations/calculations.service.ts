@@ -41,8 +41,8 @@ export class CalculationsService {
         this.prisma.timeClockReport.count({
           where: { cycleId: cycle.id },
         }),
-        this.prisma.calculationRun.findUnique({
-          where: { cycleId: cycle.id },
+        this.prisma.calculationRun.findFirst({
+          where: { cycleId: cycle.id, deletedAt: null },
           include: {
             results: {
               include: { employee: true },
@@ -79,9 +79,10 @@ export class CalculationsService {
     return this.status(currentStatus.cycle.payrollMonth);
   }
 
+  // Un calcul mis à la corbeille ne se recalcule plus tout seul.
   async recalculateIfExists(cycleId: string) {
-    const run = await this.prisma.calculationRun.findUnique({
-      where: { cycleId },
+    const run = await this.prisma.calculationRun.findFirst({
+      where: { cycleId, deletedAt: null },
       select: { id: true },
     });
     if (run) await this.calculateCycle(cycleId);
@@ -90,8 +91,55 @@ export class CalculationsService {
   // Le mois ouvert est affiché dans la vue d'ensemble: l'historique liste
   // tous les autres mois calculés.
   async history(month?: string) {
+    return this.listRuns({
+      deletedAt: null,
+      ...(month ? { cycle: { payrollMonth: { not: month } } } : {}),
+    });
+  }
+
+  // Corbeille: les calculs retirés de l'historique par l'utilisateur.
+  async deletedHistory() {
+    return this.listRuns({ deletedAt: { not: null } });
+  }
+
+  async deleteRun(runId: string) {
+    await this.findRun(runId);
+    await this.prisma.calculationRun.update({
+      where: { id: runId },
+      data: { deletedAt: new Date() },
+    });
+    return { deleted: true };
+  }
+
+  async deleteHistory(month?: string) {
     const runs = await this.prisma.calculationRun.findMany({
-      where: month ? { cycle: { payrollMonth: { not: month } } } : {},
+      where: {
+        deletedAt: null,
+        ...(month ? { cycle: { payrollMonth: { not: month } } } : {}),
+      },
+      select: { id: true },
+    });
+    if (!runs.length) return { deleted: 0 };
+
+    await this.prisma.calculationRun.updateMany({
+      where: { id: { in: runs.map((run) => run.id) } },
+      data: { deletedAt: new Date() },
+    });
+    return { deleted: runs.length };
+  }
+
+  async restoreRun(runId: string) {
+    await this.findRun(runId);
+    await this.prisma.calculationRun.update({
+      where: { id: runId },
+      data: { deletedAt: null },
+    });
+    return { restored: true };
+  }
+
+  private async listRuns(where: Prisma.CalculationRunWhereInput) {
+    const runs = await this.prisma.calculationRun.findMany({
+      where,
       include: {
         cycle: true,
         results: {
@@ -118,6 +166,7 @@ export class CalculationsService {
       openDays: run.openDays,
       adjustmentMinutes: run.adjustmentMinutes,
       launchedAt: run.launchedAt,
+      deletedAt: run.deletedAt,
       archivedAt: run.cycle.resetAt ?? run.cycle.completedAt,
       employeeCount: run.results.length,
       reviewCount: run.results.filter((result) => result.requiresReview).length,
@@ -431,6 +480,8 @@ export class CalculationsService {
           openDays,
           adjustmentMinutes,
           launchedAt: new Date(),
+          // Relancer le calcul d'un mois le sort de la corbeille.
+          deletedAt: null,
         },
       });
       await tx.employeeCalculation.deleteMany({ where: { runId: run.id } });

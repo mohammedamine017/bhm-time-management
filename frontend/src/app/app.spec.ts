@@ -57,6 +57,7 @@ describe('App', () => {
       'Rapports pointeuse',
       'Jours fériés',
       'Historique des calculs',
+      'Corbeille des calculs',
       'Documents',
     ]);
   });

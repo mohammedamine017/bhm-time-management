@@ -51,6 +51,32 @@ export class CalculationService {
     );
   }
 
+  deletedHistory() {
+    return this.http.get<CalculationHistoryItem[]>(
+      `${this.apiUrl}/calculations/deleted`,
+    );
+  }
+
+  deleteRun(runId: string) {
+    return this.http.delete<{ deleted: boolean }>(
+      `${this.apiUrl}/calculations/history/${runId}`,
+    );
+  }
+
+  deleteHistory(month: string) {
+    return this.http.delete<{ deleted: number }>(
+      `${this.apiUrl}/calculations/history`,
+      { params: { month } },
+    );
+  }
+
+  restoreRun(runId: string) {
+    return this.http.post<{ restored: boolean }>(
+      `${this.apiUrl}/calculations/history/${runId}/restore`,
+      {},
+    );
+  }
+
   historyRun(runId: string) {
     return this.http.get<CalculationHistoryRun>(
       `${this.apiUrl}/calculations/history/${runId}`,
