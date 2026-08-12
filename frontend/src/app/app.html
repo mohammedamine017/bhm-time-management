@@ -226,7 +226,7 @@
           }
 
           <section class="flow-grid">
-            <article class="flow-item">
+            <article class="flow-item" [class.has-data]="!!employeeList()">
               <span class="step-number">1</span>
               <div>
                 <h3>Liste des employés</h3>
@@ -242,7 +242,10 @@
               </button>
             </article>
 
-            <article class="flow-item">
+            <article
+              class="flow-item"
+              [class.has-data]="!!scanBatch()?.documents?.length"
+            >
               <span class="step-number">2</span>
               <div>
                 <h3>Feuilles horaires</h3>
@@ -273,7 +276,10 @@
               </div>
             </article>
 
-            <article class="flow-item">
+            <article
+              class="flow-item"
+              [class.has-data]="timeClockReports().length > 0"
+            >
               <span class="step-number">3</span>
               <div>
                 <h3>Rapports pointeuse</h3>
