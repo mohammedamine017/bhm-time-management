@@ -652,7 +652,9 @@
               <thead>
                 <tr>
                   <th>Rapport</th>
-                  <th>Date d’import</th>
+                  @if (isAdmin) {
+                    <th>Date d’import</th>
+                  }
                   <th>Employé</th>
                   <th>Total heures</th>
                   <th>Pause payée</th>
@@ -664,7 +666,9 @@
                 @for (report of filteredTimeClockReports(); track report.id) {
                   <tr>
                     <td><strong>{{ report.fileName }}</strong></td>
-                    <td>{{ formatDate(report.importedAt) }}</td>
+                    @if (isAdmin) {
+                      <td>{{ formatDate(report.importedAt) }}</td>
+                    }
                     <td>
                       <strong>{{ timeClockReportEmployeeLabel(report) }}</strong>
                     </td>
@@ -729,7 +733,7 @@
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="7" class="list-empty">
+                    <td [attr.colspan]="isAdmin ? 7 : 6" class="list-empty">
                       Aucun rapport importé pour cette période.
                     </td>
                   </tr>
