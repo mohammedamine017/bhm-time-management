@@ -162,11 +162,48 @@
 .sidebar-note span {
   color: #b9cee5;
   font-size: 12px;
+  font-weight: 600;
 }
 
 .sidebar-note strong {
-  font-size: 13px;
+  color: #cddff1;
+  font-size: 12px;
+  font-weight: 550;
   line-height: 1.4;
+}
+
+/* Sélecteur du mois de paie, adapté au fond sombre de la barre latérale. */
+.sidebar-month {
+  display: grid;
+  gap: 6px;
+}
+
+.sidebar-month input {
+  width: 100%;
+  min-height: 38px;
+  box-sizing: border-box;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 10%);
+  color: white;
+  color-scheme: dark;
+  padding: 8px 10px;
+  font: inherit;
+  font-weight: 600;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.sidebar-month input:hover {
+  background: rgb(255 255 255 / 15%);
+  border-color: rgb(255 255 255 / 32%);
+}
+
+.sidebar-month input:focus-visible {
+  border-color: white;
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 16%);
+  outline: none;
 }
 
 .workspace {
@@ -222,22 +259,6 @@ p {
   font-size: 12px;
   font-weight: 650;
   text-transform: uppercase;
-}
-
-.month-control {
-  display: grid;
-  gap: 5px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 550;
-}
-
-.month-control input {
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: white;
-  color: var(--ink);
-  padding: 9px 10px;
 }
 
 .overview-heading,
@@ -1875,7 +1896,6 @@ th {
     font-size: 12px;
   }
 
-  .month-control input,
   .search-control input,
   .filter-control select {
     min-height: 32px;
@@ -2166,11 +2186,6 @@ th {
     flex-direction: column;
   }
 
-  .month-control {
-    width: 100%;
-  }
-
-  .month-control input,
   .search-control input,
   .filter-control select,
   button,

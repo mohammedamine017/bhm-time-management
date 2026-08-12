@@ -161,7 +161,14 @@
       </nav>
 
       <div class="sidebar-note">
-        <span>Période active</span>
+        <label class="sidebar-month">
+          <span>Mois de paie</span>
+          <input
+            type="month"
+            [ngModel]="payrollMonth()"
+            (ngModelChange)="changeMonth($event)"
+          />
+        </label>
         <strong>{{ cycleLabel() }}</strong>
       </div>
     </aside>
@@ -173,14 +180,6 @@
           <h1>{{ activeViewLabel() }}</h1>
           <p>{{ cycleLabel() }}</p>
         </div>
-        <label class="month-control">
-          <span>Mois de paie</span>
-          <input
-            type="month"
-            [ngModel]="payrollMonth()"
-            (ngModelChange)="changeMonth($event)"
-          />
-        </label>
       </header>
 
       @if (cycleError()) {

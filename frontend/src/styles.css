@@ -19,7 +19,7 @@ table,
 .list-summary,
 .filtered-count,
 .duration-input,
-.month-control input {
+.sidebar-month input {
   font-variant-numeric: tabular-nums;
 }
 
