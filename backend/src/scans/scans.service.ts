@@ -18,6 +18,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ClaudeExtractionService } from './claude-extraction.service';
 import { ScanStorageService } from './scan-storage.service';
 
+export const MAX_SCAN_FILES = 5;
+export const MAX_SCAN_FILE_SIZE = 12 * 1024 * 1024;
+
 interface UploadedScan {
   originalname: string;
   buffer: Buffer;
@@ -97,7 +100,9 @@ export class ScansService implements OnApplicationBootstrap {
 
   async upload(files: UploadedScan[], month?: string) {
     if (!files?.length) throw new BadRequestException('Aucun document recu.');
-    if (files.length > 12) throw new BadRequestException('Maximum 12 documents par envoi.');
+    if (files.length > MAX_SCAN_FILES) {
+      throw new BadRequestException(`Maximum ${MAX_SCAN_FILES} documents par envoi.`);
+    }
     if (files.some((file) => !this.supportedTypes.has(file.mimetype))) {
       throw new BadRequestException('Formats acceptes: JPG, PNG, WEBP, GIF et PDF.');
     }

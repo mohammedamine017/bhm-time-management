@@ -80,7 +80,7 @@ export class App implements OnInit {
   protected readonly savingTimeClockDay = signal('');
   protected readonly savingPause = signal('');
   protected readonly scanSent = signal(false);
-  private readonly maxScanFiles = 12;
+  protected readonly maxScanFiles = 5;
   private readonly maxScanFileSize = 12 * 1024 * 1024;
   protected readonly selectedDocument = signal<ScanDocument | null>(null);
   protected readonly retryingDocument = signal('');
@@ -363,7 +363,7 @@ export class App implements OnInit {
       messages.push('Chaque document doit faire au maximum 12 Mo.');
     }
     if (selected.length > this.maxScanFiles) {
-      messages.push('Maximum 12 documents par envoi.');
+      messages.push(`Maximum ${this.maxScanFiles} documents par envoi.`);
     }
     this.scanError.set(messages.join(' '));
   }

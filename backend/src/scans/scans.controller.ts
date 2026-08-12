@@ -16,7 +16,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { UpdateExtractedDayDto } from './dto/update-extracted-day.dto';
-import { ScansService } from './scans.service';
+import { MAX_SCAN_FILES, MAX_SCAN_FILE_SIZE, ScansService } from './scans.service';
 
 @Controller('scans')
 export class ScansController {
@@ -49,7 +49,9 @@ export class ScansController {
 
   @Post('batches')
   @HttpCode(HttpStatus.ACCEPTED)
-  @UseInterceptors(FilesInterceptor('files', 12, { limits: { fileSize: 12 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FilesInterceptor('files', MAX_SCAN_FILES, { limits: { fileSize: MAX_SCAN_FILE_SIZE } }),
+  )
   upload(
     @UploadedFiles()
     files: { originalname: string; buffer: Buffer; mimetype: string; size: number }[],
