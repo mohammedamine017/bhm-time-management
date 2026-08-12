@@ -56,7 +56,7 @@
   border-radius: 8px;
   background: white;
   color: var(--blue);
-  font-weight: 900;
+  font-weight: 550;
 }
 
 .brand div,
@@ -87,8 +87,8 @@
 .nav-group-label {
   padding: 0 10px 5px;
   color: #91afd0;
-  font-size: 10px;
-  font-weight: 850;
+  font-size: 12px;
+  font-weight: 650;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -116,7 +116,7 @@
 
 .nav button span {
   color: #b8cce2;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.25;
 }
 
@@ -209,14 +209,14 @@ h3 {
 p {
   margin-bottom: 0;
   color: var(--muted);
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .eyebrow {
   margin-bottom: 5px;
   color: var(--blue);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
   text-transform: uppercase;
 }
 
@@ -225,7 +225,7 @@ p {
   gap: 5px;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 550;
 }
 
 .month-control input {
@@ -281,7 +281,7 @@ p {
 
 .flow-item.has-data > div p {
   color: var(--blue-dark);
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .flow-actions,
@@ -333,8 +333,8 @@ p {
 .search-control span,
 .filter-control span {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 750;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .search-control input,
@@ -360,7 +360,7 @@ p {
   color: var(--muted);
   padding-bottom: 10px;
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .list-empty {
@@ -447,7 +447,7 @@ p {
 .employee-identity small,
 .cell-helper {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .status-detail {
@@ -475,7 +475,7 @@ p {
   cursor: pointer;
   padding: 6px 10px;
   font-size: 12px;
-  font-weight: 780;
+  font-weight: 600;
   line-height: 1;
   text-decoration: none;
   white-space: nowrap;
@@ -525,7 +525,7 @@ p {
 .time-sheet-summary span {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 550;
 }
 
 .time-sheet-list {
@@ -592,7 +592,7 @@ p {
 .time-sheet-file small,
 .time-sheet-metrics > span:first-child {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .time-sheet-metrics {
@@ -607,8 +607,8 @@ p {
   background: #edf1f5;
   color: var(--muted);
   padding: 5px 9px;
-  font-size: 11px;
-  font-weight: 850;
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .sheet-status.control {
@@ -646,7 +646,7 @@ p {
   border-radius: 50%;
   background: var(--blue-soft);
   color: var(--blue);
-  font-weight: 900;
+  font-weight: 550;
 }
 
 button {
@@ -655,7 +655,7 @@ button {
   background: white;
   color: var(--blue);
   padding: 9px 13px;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 button.primary {
@@ -674,7 +674,7 @@ button.primary {
   color: var(--blue);
   cursor: pointer;
   padding: 9px 13px;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .button.primary {
@@ -834,8 +834,8 @@ th {
 
 .history-summary span {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 750;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .history-summary strong {
@@ -865,7 +865,7 @@ th {
   display: block;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .list-summary {
@@ -888,7 +888,7 @@ th {
   color: var(--muted);
   padding: 5px 9px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .badge.success {
@@ -904,13 +904,13 @@ th {
   border-radius: 50%;
   background: var(--blue-soft);
   color: var(--blue);
-  font-weight: 900;
+  font-weight: 550;
 }
 
 .warning-text {
   color: #9a5a00 !important;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .calculation-modal {
@@ -940,7 +940,7 @@ th {
   padding: 5px 7px;
   color: var(--ink);
   font: inherit;
-  font-weight: 700;
+  font-weight: 550;
 }
 
 .pause-select {
@@ -951,7 +951,7 @@ th {
   padding: 5px 7px;
   color: var(--ink);
   font: inherit;
-  font-weight: 700;
+  font-weight: 550;
 }
 
 .duration-input:focus {
@@ -985,8 +985,8 @@ th {
 
 .calculation-summary span {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 750;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .calculation-summary strong {
@@ -1018,12 +1018,12 @@ th {
   border-radius: 50%;
   background: #e58a12;
   color: white;
-  font-weight: 900;
+  font-weight: 550;
 }
 
 .calculation-warning small {
   justify-self: end;
-  font-weight: 700;
+  font-weight: 550;
 }
 
 .calculation-detail-wrap {
@@ -1041,7 +1041,7 @@ th {
 .calculation-detail-table th {
   z-index: 2;
   padding: 7px 9px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .calculation-detail-table td {
@@ -1070,7 +1070,7 @@ th {
 
 .calculation-detail-table a {
   color: var(--blue);
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .detail-date {
@@ -1101,8 +1101,8 @@ th {
   display: inline-flex;
   border-radius: 5px;
   padding: 4px 7px;
-  font-size: 11px;
-  font-weight: 850;
+  font-size: 12px;
+  font-weight: 650;
   white-space: nowrap;
 }
 
@@ -1117,7 +1117,7 @@ th {
   padding: 5px 7px;
   text-align: center;
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 650;
   text-transform: uppercase;
 }
 
@@ -1194,7 +1194,7 @@ th {
 .source-label {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 550;
 }
 
 .calculation-edit-alert {
@@ -1213,7 +1213,7 @@ th {
   gap: 5px;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .holiday-panel form input {
@@ -1365,8 +1365,8 @@ th {
   background: var(--blue-soft);
   color: var(--blue);
   padding: 4px 6px;
-  font-size: 10px;
-  font-weight: 900;
+  font-size: 12px;
+  font-weight: 550;
 }
 
 .icon-button {
@@ -1404,7 +1404,7 @@ th {
   background: #e7f5ef;
   color: var(--green);
   font-size: 26px;
-  font-weight: 900;
+  font-weight: 550;
 }
 
 .document-grid {
@@ -1437,7 +1437,7 @@ th {
 }
 
 .document-state {
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .document-state.review {
@@ -1460,12 +1460,12 @@ th {
 .document-grid a,
 .qr-modal a {
   color: var(--blue);
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .archive-link {
   color: var(--blue);
-  font-weight: 750;
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -1516,7 +1516,7 @@ th {
   border-radius: 8px;
   background: #fff0f0;
   color: #a42a2a;
-  font-weight: 900;
+  font-weight: 550;
 }
 
 .reset-option {
@@ -1615,7 +1615,7 @@ th {
   color: var(--muted);
   padding: 7px 16px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 550;
 }
 
 .review-legend span {
@@ -1723,7 +1723,7 @@ th {
   margin-top: 3px;
   overflow: hidden;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1748,7 +1748,7 @@ th {
   padding: 4px;
   font-size: 12px;
   text-align: center;
-  font-weight: 800;
+  font-weight: 650;
   outline: none;
 }
 
@@ -1800,7 +1800,7 @@ th {
   }
 
   .brand small {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .nav {
@@ -1817,7 +1817,7 @@ th {
   }
 
   .nav button strong {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .nav button span {
@@ -1891,7 +1891,7 @@ th {
 
   .operational-table td {
     height: 46px;
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .calculation-summary > div,
@@ -1912,7 +1912,7 @@ th {
   .extraction-table th,
   .extraction-table td {
     height: 34px;
-    font-size: 10px;
+    font-size: 12px;
   }
 }
 
@@ -1967,7 +1967,7 @@ th {
   .mobile-brand small {
     margin-top: 2px;
     color: #c6d8ec;
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .menu-toggle,

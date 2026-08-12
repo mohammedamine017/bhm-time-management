@@ -1,11 +1,26 @@
 @import "tailwindcss";
+/* Police variable auto-hébergée: toutes les graisses existent réellement. */
+@import "@fontsource-variable/inter";
 
 :root {
   color-scheme: light;
-  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-family: "Inter Variable", Inter, "Segoe UI", Arial, sans-serif;
   color: #15243a;
   background: #f4f7fb;
   font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Chiffres de largeur fixe: les colonnes d'heures et de matricules s'alignent. */
+table,
+.calculation-summary,
+.time-sheet-summary,
+.list-summary,
+.filtered-count,
+.duration-input,
+.month-control input {
+  font-variant-numeric: tabular-nums;
 }
 
 * {
