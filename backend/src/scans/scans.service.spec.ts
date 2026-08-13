@@ -115,7 +115,7 @@ describe('ScansService', () => {
         return {
           rows: [
             {
-              matricule: 'BHM-001',
+              employeeRef: 1,
               extractedFullName: 'Ahmed Benali',
               matchedFullName: 'Ahmed Benali',
               sourceRowLabel: null,

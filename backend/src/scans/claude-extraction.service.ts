@@ -12,15 +12,14 @@ interface ScanFile {
 }
 
 interface EmployeeReference {
-  id: string;
-  matricule: string;
   firstName: string;
   lastName: string;
 }
 
 export interface ClaudeExtraction {
   rows: {
-    matricule: string | null;
+    // Rang de l'employé dans la liste envoyée (1 = première ligne).
+    employeeRef: number | null;
     extractedFullName: string;
     matchedFullName: string | null;
     sourceRowLabel: string | null;
@@ -178,7 +177,7 @@ export class ClaudeExtractionService {
       rows: employees.slice(0, 6).map((employee, employeeIndex) => {
         let workdayIndex = 0;
         return {
-          matricule: employee.matricule,
+          employeeRef: employeeIndex + 1,
           extractedFullName: `${employee.firstName} ${employee.lastName}`,
           matchedFullName: `${employee.firstName} ${employee.lastName}`,
           sourceRowLabel: 'Extraction simulée',
@@ -223,12 +222,13 @@ export class ClaudeExtractionService {
     startDate: Date,
     endDate: Date,
   ) {
-    // Une ligne par employé: matricule puis nom complet. Le matricule sert de
-    // référence de retour, ce qui évite d'envoyer un identifiant interne.
+    // Une ligne par employé: rang dans la liste puis nom complet. Le rang sert
+    // de référence de retour: aucun identifiant interne ni matricule n'est
+    // envoyé, seul le nom nécessaire au rapprochement l'est.
     const references = employees
       .map(
-        (employee) =>
-          `${employee.matricule} ${employee.firstName} ${employee.lastName}`,
+        (employee, index) =>
+          `${index + 1} ${employee.firstName} ${employee.lastName}`,
       )
       .join('\n');
     const expectedDates = this.datesBetween(startDate, endDate);
@@ -240,9 +240,9 @@ export class ClaudeExtractionService {
       'Lis uniquement la grille principale des horaires.',
       'Le titre Atelier ne represente pas une donnee. Le nom manuscrit peut occuper les zones Atelier et Nom et Prenom: lis-les comme une seule zone d’identite.',
       'Extrais chaque vraie ligne employe visible dans la grille.',
-      'Associe la ligne au meilleur employe connu a partir du nom complet et retourne son matricule.',
+      'Associe la ligne au meilleur employe connu a partir du nom complet et retourne son numero de reference.',
       'Le nom manuscrit peut etre inverse (nom avant prenom), incomplet (nom seul ou prenom seul) ou mal orthographie: retiens quand meme le meilleur employe correspondant.',
-      'Si deux employes sont aussi plausibles l’un que l’autre, retourne matricule null et mets requiresReview a true plutot que de deviner.',
+      'Si deux employes sont aussi plausibles l’un que l’autre, retourne employeeRef null et mets requiresReview a true plutot que de deviner.',
       `Pour chaque ligne, retourne exactement une valeur pour chacune de ces dates, dans le meme ordre: ${expectedDates.join(', ')}.`,
       'Valeurs autorisees par case: nombre d’heures, A, 0, X, T, F, STC, MU, RC, CP, MA, heures combinees avec D ou F, ou chaine vide.',
       'Preserve exactement les codes manuscrits suivants en majuscules: STC, MU, RC, CP et MA. Ne les remplace jamais par un autre code.',
@@ -252,7 +252,7 @@ export class ClaudeExtractionService {
       'D signifie deplacement avec les heures travaillees du meme jour. F signifie jour ferie avec les heures travaillees du meme jour.',
       'Ne retourne jamais D seul: un deplacement doit toujours etre associe aux heures visibles dans la meme case.',
       'Ne devine pas une valeur illisible: conserve la meilleure lecture, reduis confidence et mets needsReview a true.',
-      `Employes connus, un par ligne au format "matricule prenom nom":\n${references}`,
+      `Employes connus, un par ligne au format "reference prenom nom":\n${references}`,
     ].join('\n');
   }
 
@@ -268,7 +268,7 @@ export class ClaudeExtractionService {
             type: 'object',
             additionalProperties: false,
             required: [
-              'matricule',
+              'employeeRef',
               'extractedFullName',
               'matchedFullName',
               'sourceRowLabel',
@@ -276,7 +276,7 @@ export class ClaudeExtractionService {
               'days',
             ],
             properties: {
-              matricule: { type: ['string', 'null'] },
+              employeeRef: { type: ['integer', 'null'] },
               extractedFullName: { type: 'string' },
               matchedFullName: { type: ['string', 'null'] },
               sourceRowLabel: { type: ['string', 'null'] },

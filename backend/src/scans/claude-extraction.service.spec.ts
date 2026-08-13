@@ -12,14 +12,7 @@ describe('ClaudeExtractionService mock fallback', () => {
 
     const result = await service.extract(
       { buffer: Buffer.from(''), mimetype: 'image/jpeg' },
-      [
-        {
-          id: 'employee-1',
-          matricule: 'BHM-001',
-          firstName: 'Ahmed',
-          lastName: 'Benali',
-        },
-      ],
+      [{ firstName: 'Ahmed', lastName: 'Benali' }],
       new Date('2026-06-20T00:00:00.000Z'),
       new Date('2026-07-19T00:00:00.000Z'),
     );
