@@ -57,7 +57,7 @@ export class App implements OnInit {
   protected readonly cycle = signal<PayrollCycle | null>(null);
   protected readonly cycleError = signal('');
   protected readonly loading = signal(false);
-  protected readonly payrollMonth = signal(this.currentMonth());
+  protected readonly payrollMonth = signal(App.resolveMonth());
   protected readonly employeeList = signal<EmployeeListImport | null>(null);
   protected readonly employeeHistory = signal<EmployeeImportHistory[]>([]);
   protected readonly employeePreview = signal<EmployeeImportPreview | null>(null);
@@ -262,6 +262,7 @@ export class App implements OnInit {
 
   protected changeMonth(month: string) {
     this.payrollMonth.set(month);
+    App.storeMonth(month);
     this.closeQr();
     this.scanBatch.set(null);
     this.calculationStatus.set(null);
@@ -1458,7 +1459,22 @@ export class App implements OnInit {
     return new URLSearchParams(window.location.search).get('admin') === '1';
   }
 
-  private currentMonth() {
+  // Le mois ouvert vit dans l'URL: un rafraîchissement conserve la période
+  // consultée et le lien reste partageable.
+  private static resolveMonth() {
+    const month = new URLSearchParams(window.location.search).get('month');
+    return month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month)
+      ? month
+      : App.currentMonth();
+  }
+
+  private static storeMonth(month: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('month', month);
+    history.replaceState({}, '', url);
+  }
+
+  private static currentMonth() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   }

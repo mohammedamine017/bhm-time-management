@@ -62,6 +62,18 @@ describe('App', () => {
     ]);
   });
 
+  it('keeps the payroll month from the address after a reload', async () => {
+    history.replaceState({}, '', `${location.pathname}?month=2026-07`);
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const month = (fixture.nativeElement as HTMLElement).querySelector<
+      HTMLInputElement
+    >('input[type="month"]')!;
+
+    expect(month.value).toBe('2026-07');
+  });
+
   it('opens and closes the mobile menu when navigating', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
