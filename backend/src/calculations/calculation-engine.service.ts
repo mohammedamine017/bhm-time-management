@@ -84,11 +84,27 @@ export class CalculationEngineService {
     if (rowRequiresReview) {
       warnings.push('La feuille contient au moins une case à vérifier');
     }
+    const requiresReview =
+      rowRequiresReview || details.some((day) => day.requiresReview);
+
+    // Les heures d'absence du mois sont compensées par les heures
+    // supplémentaires du même employé, le mini avant le maxi: l'employé
+    // conserve ses heures les mieux payées. Un résultat à vérifier garde ses
+    // totaux bruts pour ne pas masquer une saisie douteuse avant correction.
+    if (!requiresReview) {
+      const mini = Math.min(totals.absenceMinutes, totals.overtimeMiniMinutes);
+      totals.absenceMinutes -= mini;
+      totals.overtimeMiniMinutes -= mini;
+
+      const maxi = Math.min(totals.absenceMinutes, totals.overtimeMaxiMinutes);
+      totals.absenceMinutes -= maxi;
+      totals.overtimeMaxiMinutes -= maxi;
+    }
+
     return {
       employeeId: input.employeeId,
       ...totals,
-      requiresReview:
-        rowRequiresReview || details.some((day) => day.requiresReview),
+      requiresReview,
       warnings: [...new Set(warnings)],
       details,
     };

@@ -32,13 +32,65 @@ describe('CalculationEngineService', () => {
       adjustmentMinutes: 0,
     });
 
+    // Brut: 1440 d'absence, 120 de mini et 480 de maxi. Les 600 minutes
+    // supplémentaires compensent d'autant les heures d'absence.
     expect(result).toMatchObject({
       normalMinutes: 480,
-      absenceMinutes: 1440,
-      overtimeMiniMinutes: 120,
-      overtimeMaxiMinutes: 480,
+      absenceMinutes: 840,
+      overtimeMiniMinutes: 0,
+      overtimeMaxiMinutes: 0,
       displacementDays: 0,
     });
+  });
+
+  it('compense les heures d’absence par les heures supplémentaires', () => {
+    const result = engine.calculate({
+      employeeId: 'employee-1',
+      scannedDays: [
+        scanned('2026-06-22', '10'),
+        scanned('2026-06-23', 'A'),
+      ],
+      holidayDates: new Set(),
+      adjustmentMinutes: 0,
+    });
+
+    expect(result.normalMinutes).toBe(480);
+    expect(result.absenceMinutes).toBe(360);
+    expect(result.overtimeMiniMinutes).toBe(0);
+  });
+
+  it('consomme le supplément mini avant le maxi', () => {
+    const result = engine.calculate({
+      employeeId: 'employee-1',
+      scannedDays: [
+        scanned('2026-06-23', 'A'),
+        scanned('2026-06-26', '8'),
+        scanned('2026-06-27', '8'),
+      ],
+      holidayDates: new Set(),
+      adjustmentMinutes: 0,
+    });
+
+    expect(result.absenceMinutes).toBe(0);
+    expect(result.overtimeMiniMinutes).toBe(0);
+    expect(result.overtimeMaxiMinutes).toBe(480);
+  });
+
+  it('conserve les totaux bruts quand le résultat est à vérifier', () => {
+    const result = engine.calculate({
+      employeeId: 'employee-1',
+      scannedDays: [
+        scanned('2026-06-22', '10'),
+        scanned('2026-06-23', 'A'),
+        scanned('2026-06-24', 'P'),
+      ],
+      holidayDates: new Set(),
+      adjustmentMinutes: 0,
+    });
+
+    expect(result.requiresReview).toBe(true);
+    expect(result.absenceMinutes).toBe(480);
+    expect(result.overtimeMiniMinutes).toBe(120);
   });
 
   it('additionne les heures atelier et administration pour la même date', () => {
